@@ -1,0 +1,25 @@
+name: ArkOps-Ai
+version: '${project.version}'
+main: com.arkops.ArkOpsAi
+api-version: '1.21'
+author: ArkOps Team
+description: AI-powered server operations management plugin for PurpurMC
+website: https://github.com/ArkOps
+
+commands:
+  ops:
+    description: Main command for ArkOps-Ai plugin
+    usage: /<command> [操作]
+    aliases: [arkops, aiops]
+    permission: arkops.use
+
+permissions:
+  arkops.use:
+    description: Allows using the /ops command
+    default: true
+  arkops.admin:
+    description: Allows admin operations
+    default: op
+  arkops.superadmin:
+    description: Allows super admin operations
+    default: false

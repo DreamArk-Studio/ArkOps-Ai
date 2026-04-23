@@ -1,0 +1,14 @@
+# ArkOps-Ai 权限配置文件
+# 权限等级: DISABLED (禁用), PLAYER (玩家), ADMIN (管理员), SUPER_ADMIN (超级管理员)
+
+# 按 UUID 存储玩家权限
+players:
+  # 示例: 将下面的 UUID 替换为实际玩家的 UUID
+  # 00000000-0000-0000-0000-000000000000:
+  #   name: "PlayerName"
+  #   level: "SUPER_ADMIN"
+
+# 按名称索引 (用于快速查找)
+players_by_name:
+  # 示例:
+  # PlayerName: "00000000-0000-0000-0000-000000000000"
