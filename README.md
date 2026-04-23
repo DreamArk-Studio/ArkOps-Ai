@@ -124,7 +124,7 @@ The compiled jar file will be in `target/ArkOps-Ai-1.0.0.jar`.
 
 ## License
 
-This project is open source.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
