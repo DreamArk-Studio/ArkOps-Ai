@@ -1,93 +1,93 @@
 # ArkOps-Ai
 
-ArkOps-Ai is an AI-powered server operations management plugin for PurpurMC (Minecraft). It enables server administrators to manage their servers through natural language commands powered by OpenAI's GPT models.
+ArkOps-Ai 是一个基于 AI 的服务器运维管理插件，适用于 PurpurMC (Minecraft)。它使服务器管理员能够通过自然语言命令来管理服务器，由 DeepSeek 的大语言模型提供驱动。
 
-## Features
+## 功能特性
 
-- **AI-Powered Operations**: Use natural language to manage your server through the `/ops` command
-- **Multi-Step Agent System**: AI can execute complex tasks in multiple steps with automatic permission checks
-- **Permission-Based Access Control**: Four permission levels ensure secure operations
-- **Internationalization**: Supports English and Chinese languages
-- **Comprehensive Server Management**: Restart, stop, reload, plugin management, player management, world management, and more
+- **AI 驱动运维**：通过 `/ops` 命令使用自然语言管理服务器
+- **多步骤 Agent 系统**：AI 可以执行复杂的多步骤任务，并自动进行权限检查
+- **基于权限的访问控制**：四级权限系统确保操作安全
+- **国际化支持**：支持英文和中文语言
+- **全面的服务器管理**：重启、停止、重载、插件管理、玩家管理、世界管理等
 
-## Permission Levels
+## 权限等级
 
-| Level | Description | Capabilities |
+| 等级 | 描述 | 能力 |
 |-------|-------------|--------------|
-| **DISABLED** | No permissions | Cannot use any features |
-| **PLAYER** | Default | Can only ask game-related questions |
-| **ADMIN** | Administrator | Plugin management, player management, world management, command execution |
-| **SUPER_ADMIN** | Super Administrator | All permissions including server control, player banning, permission settings |
+| **DISABLED** | 无权限 | 无法使用任何功能 |
+| **PLAYER** | 默认 | 只能询问游戏相关问题 |
+| **ADMIN** | 管理员 | 插件管理、玩家管理、世界管理、命令执行 |
+| **SUPER_ADMIN** | 超级管理员 | 所有权限，包括服务器控制、玩家封禁、权限设置 |
 
-## Installation
+## 安装步骤
 
-1. Download the latest `ArkOps-Ai-1.0.0.jar` from the [Releases](https://github.com/DreamArk-Studio/ArkOps-Ai/releases) page
-2. Place the jar file in your server's `plugins` folder
-3. Start or restart your server
-4. Configure the plugin in `plugins/ArkOps-Ai/config.yml`
-5. Add your OpenAI API key to the configuration file
+1. 从 [Releases](https://github.com/DreamArk-Studio/ArkOps-Ai-CN/releases) 页面下载最新的 `ArkOps-Ai-1.0.0.jar`
+2. 将 jar 文件放入服务器的 `plugins` 文件夹
+3. 启动或重启服务器
+4. 在 `plugins/ArkOps-Ai/config.yml` 中配置插件
+5. 在配置文件中添加你的 DeepSeek API Key
 
-## Configuration
+## 配置说明
 
 ### config.yml
 
 ```yaml
-# Language setting (en, zh)
-language: "en"
+# 语言设置 (en, zh)
+language: "zh"
 
-# OpenAI API Configuration
-openai:
-  # OpenAI API Key
+# DeepSeek API 配置
+deepseek:
+  # DeepSeek API Key
   api-key: "YOUR_API_KEY_HERE"
-  # Model to use
-  model: "gpt-5.4"
-  # API timeout (seconds)
+  # 使用的模型
+  model: "deepseek-chat"
+  # API 超时时间 (秒)
   timeout: 60
-  # Max response tokens
+  # 最大响应 token 数
   max-tokens: 2000
-  # Temperature (creativity, 0-1)
-  temperature: 0.7
+  # 温度参数 (创造性, 0-2)
+  temperature: 1.0
 ```
 
 ### permissions.yml
 
-Configure player permission levels in `plugins/ArkOps-Ai/permissions.yml`:
+在 `plugins/ArkOps-Ai/permissions.yml` 中配置玩家权限等级：
 
 ```yaml
 players:
-  # Example:
+  # 示例：
   # 6f12f43f-150b-3437-9836-651e535176ec:
   #   name: "PlayerName"
   #   level: "SUPER_ADMIN"
 ```
 
-## Usage
+## 使用方法
 
-### Basic Commands
+### 基础命令
 
 ```
-/ops                          # Show help
-/ops restart server           # Restart the server
-/ops stop server              # Stop the server
-/ops hot-reload Essentials    # Hot-reload a plugin
-/ops hot-unload PluginName    # Hot-unload a plugin
-/ops hot-load PluginName      # Hot-load a plugin
-/ops list plugins             # List all plugins with descriptions
-/ops execute command <cmd>    # Execute any server command
-/ops set game time to night   # Set game time
-/ops set weather to clear     # Set weather
-/ops set my gamemode to creative  # Set game mode
-/ops server status            # Get server status
-/ops player info <name>       # Get player information
-/ops teleport <player> to <target>  # Teleport player
-/ops give item diamond 64 to <player>  # Give items
-/ops kick player <name>       # Kick a player
-/ops ban player <name>        # Ban a player (SUPER_ADMIN only)
+/ops                          # 显示帮助
+/ops restart server           # 重启服务器
+/ops stop server              # 停止服务器
+/ops hot-reload Essentials    # 热重载插件
+/ops hot-unload PluginName    # 热卸载插件
+/ops hot-load PluginName      # 热加载插件
+/ops list plugins             # 列出所有插件及描述
+/ops execute command <cmd>    # 执行任意服务器命令
+/ops set game time to night   # 设置游戏时间
+/ops set weather to clear     # 设置天气
+/ops set my gamemode to creative  # 设置游戏模式
+/ops server status            # 获取服务器状态
+/ops player info <name>       # 获取玩家信息
+/ops teleport <player> to <target>  # 传送玩家
+/ops give item diamond 64 to <player>  # 给予物品
+/ops kick player <name>       # 踢出玩家
+/ops ban player <name>        # 封禁玩家 (仅 SUPER_ADMIN)
 ```
 
-### Natural Language Examples
+### 自然语言示例
 
-The AI understands natural language, so you can use flexible commands:
+AI 能够理解自然语言，因此你可以使用灵活的命令：
 
 - `/ops restart the server please`
 - `/ops what plugins are installed?`
@@ -95,14 +95,14 @@ The AI understands natural language, so you can use flexible commands:
 - `/ops give me 64 diamonds`
 - `/ops teleport me to the spawn`
 
-## Building from Source
+## 从源码构建
 
-### Requirements
+### 环境要求
 
 - Java 21
 - Maven 3.6+
 
-### Build Steps
+### 构建步骤
 
 ```bash
 git clone https://github.com/DreamArk-Studio/ArkOps-Ai.git
@@ -110,22 +110,22 @@ cd ArkOps-Ai
 mvn clean package -DskipTests
 ```
 
-The compiled jar file will be in `target/ArkOps-Ai-1.0.0.jar`.
+编译后的 jar 文件将位于 `target/ArkOps-Ai-1.0.0.jar`。
 
-## Architecture
+## 架构设计
 
-- **ArkOpsAi**: Main plugin class
-- **LanguageManager**: Handles internationalization
-- **PermissionManager**: Manages player permission levels
-- **OpenAiManager**: Handles OpenAI API communication
-- **ServerActionManager**: Executes server operations
-- **OpsCommandExecutor**: Command entry point
-- **OpsCommandHandler**: AI agent loop and tool execution
+- **ArkOpsAi**: 主插件类
+- **LanguageManager**: 处理国际化
+- **PermissionManager**: 管理玩家权限等级
+- **OpenAiManager**: 处理 DeepSeek API 通信
+- **ServerActionManager**: 执行服务器操作
+- **OpsCommandExecutor**: 命令入口点
+- **OpsCommandHandler**: AI Agent 循环和工具执行
 
-## License
+## 许可证
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
 
-## Support
+## 支持与反馈
 
-For issues, feature requests, or questions, please open an issue on [GitHub](https://github.com/DreamArk-Studio/ArkOps-Ai/issues).
+如有问题、功能请求或疑问，请在 [GitHub](https://github.com/DreamArk-Studio/ArkOps-Ai-CN/issues) 上提交 Issue。

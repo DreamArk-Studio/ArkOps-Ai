@@ -16,12 +16,12 @@ public class OpenAiManager {
     private final OkHttpClient client;
     private final String apiKey;
     private final String model;
-    private static final String API_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String API_URL = "https://api.deepseek.com/chat/completions";
 
     public OpenAiManager(ArkOpsAi plugin) {
         this.plugin = plugin;
-        this.apiKey = plugin.getConfig().getString("openai.api-key", "");
-        this.model = plugin.getConfig().getString("openai.model", "gpt-5.4");
+        this.apiKey = plugin.getConfig().getString("deepseek.api-key", "");
+        this.model = plugin.getConfig().getString("deepseek.model", "deepseek-chat");
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(60, TimeUnit.SECONDS)
                 .readTimeout(120, TimeUnit.SECONDS)
@@ -47,7 +47,7 @@ public class OpenAiManager {
                 JsonObject requestBody = new JsonObject();
                 requestBody.addProperty("model", model);
                 requestBody.add("messages", messages);
-                requestBody.addProperty("max_completion_tokens", 2000);
+                requestBody.addProperty("max_tokens", 2000);
                 requestBody.addProperty("temperature", 0.7);
 
                 RequestBody body = RequestBody.create(
