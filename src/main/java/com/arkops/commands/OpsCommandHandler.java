@@ -28,7 +28,13 @@ public class OpsCommandHandler {
     public void handleCommand(CommandSender sender, String command) {
         UUID playerId = sender instanceof Player ? ((Player) sender).getUniqueId() : null;
         String playerName = sender.getName();
-        PermissionManager.PermissionLevel level = permissionManager.getPermissionLevel(playerId);
+        PermissionManager.PermissionLevel level;
+
+        if (!(sender instanceof Player)) {
+            level = PermissionManager.PermissionLevel.CONSOLE;
+        } else {
+            level = permissionManager.getPermissionLevel(playerId);
+        }
 
         sender.sendMessage(lang.getMessage("command.ai_analyzing"));
 
@@ -234,7 +240,8 @@ public class OpsCommandHandler {
         prompt.append("- DISABLED: No permissions\n");
         prompt.append("- PLAYER: Can only ask game-related questions\n");
         prompt.append("- ADMIN: Can manage plugins, players, worlds, and execute commands\n");
-        prompt.append("- SUPER_ADMIN: Has all permissions, including server control, banning players, permission settings\n\n");
+        prompt.append("- SUPER_ADMIN: Has all permissions, including server control, banning players, permission settings\n");
+        prompt.append("- CONSOLE: Console access, highest permission level with unrestricted access\n\n");
 
         prompt.append("Available tools:\n");
         prompt.append("- check_permission: Check permission\n");
@@ -267,7 +274,7 @@ public class OpsCommandHandler {
         JsonArray tools = new JsonArray();
 
         tools.add(createTool("check_permission", "Check if the executor has sufficient permission",
-                createPropsBuilder().add("required_level", "string", "Required permission level: DISABLED, PLAYER, ADMIN, SUPER_ADMIN", true).build()));
+                createPropsBuilder().add("required_level", "string", "Required permission level: DISABLED, PLAYER, ADMIN, SUPER_ADMIN, CONSOLE", true).build()));
 
         if (level.getLevel() >= PermissionManager.PermissionLevel.SUPER_ADMIN.getLevel()) {
             tools.add(createTool("restart_server", "Restart the server", createPropsBuilder().build()));
@@ -279,7 +286,7 @@ public class OpsCommandHandler {
             tools.add(createTool("set_permission", "Set player permission",
                     createPropsBuilder()
                             .add("player", "string", "Player name", true)
-                            .add("level", "string", "Permission level: DISABLED, PLAYER, ADMIN, SUPER_ADMIN", true).build()));
+                            .add("level", "string", "Permission level: DISABLED, PLAYER, ADMIN, SUPER_ADMIN, CONSOLE", true).build()));
         }
 
         if (level.getLevel() >= PermissionManager.PermissionLevel.ADMIN.getLevel()) {

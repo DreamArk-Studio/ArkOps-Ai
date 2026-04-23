@@ -21,7 +21,8 @@ public class PermissionManager {
         DISABLED(0, "禁用"),
         PLAYER(1, "玩家"),
         ADMIN(2, "管理员"),
-        SUPER_ADMIN(3, "超级管理员");
+        SUPER_ADMIN(3, "超级管理员"),
+        CONSOLE(4, "控制台");
 
         private final int level;
         private final String displayName;
