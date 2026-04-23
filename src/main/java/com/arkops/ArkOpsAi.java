@@ -1,6 +1,7 @@
 package com.arkops;
 
 import com.arkops.commands.OpsCommandExecutor;
+import com.arkops.manager.LanguageManager;
 import com.arkops.manager.OpenAiManager;
 import com.arkops.manager.PermissionManager;
 import com.arkops.manager.ServerActionManager;
@@ -13,6 +14,7 @@ public final class ArkOpsAi extends JavaPlugin {
     private OpenAiManager openAiManager;
     private PermissionManager permissionManager;
     private ServerActionManager serverActionManager;
+    private LanguageManager languageManager;
     private Logger logger;
 
     @Override
@@ -22,6 +24,8 @@ public final class ArkOpsAi extends JavaPlugin {
         reloadConfig();
 
         this.logger = new Logger(this);
+        this.languageManager = new LanguageManager(this);
+
         this.logger.info("ArkOps-Ai 正在初始化...");
 
         this.permissionManager = new PermissionManager(this);
@@ -59,6 +63,10 @@ public final class ArkOpsAi extends JavaPlugin {
 
     public ServerActionManager getServerActionManager() {
         return serverActionManager;
+    }
+
+    public LanguageManager getLanguageManager() {
+        return languageManager;
     }
 
     public Logger getArkOpsLogger() {

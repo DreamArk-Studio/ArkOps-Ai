@@ -1,10 +1,10 @@
 package com.arkops.commands;
 
 import com.arkops.ArkOpsAi;
+import com.arkops.manager.LanguageManager;
 import com.arkops.manager.PermissionManager;
 import com.arkops.manager.ServerActionManager;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -14,11 +14,13 @@ import java.util.UUID;
 public class OpsCommandHandler {
 
     private final ArkOpsAi plugin;
+    private final LanguageManager lang;
     private final PermissionManager permissionManager;
     private final ServerActionManager actionManager;
 
     public OpsCommandHandler(ArkOpsAi plugin) {
         this.plugin = plugin;
+        this.lang = plugin.getLanguageManager();
         this.permissionManager = plugin.getPermissionManager();
         this.actionManager = plugin.getServerActionManager();
     }
@@ -28,7 +30,7 @@ public class OpsCommandHandler {
         String playerName = sender.getName();
         PermissionManager.PermissionLevel level = permissionManager.getPermissionLevel(playerId);
 
-        sender.sendMessage("§eAI 正在分析请求...");
+        sender.sendMessage(lang.getMessage("command.ai_analyzing"));
 
         String systemPrompt = buildSystemPrompt(playerName, level, sender);
         JsonArray tools = buildTools(level);
@@ -50,20 +52,20 @@ public class OpsCommandHandler {
 
     private void executeAgentLoop(CommandSender sender, String playerName, UUID playerId, String originalCommand, JsonArray messages, JsonArray tools, int iteration) {
         if (iteration >= 10) {
-            sender.sendMessage("§cAI 已达到最大迭代次数，停止执行");
+            sender.sendMessage(lang.getMessage("command.max_iterations"));
             return;
         }
 
         plugin.getOpenAiManager().sendRequestWithMessages(messages, tools).thenAccept(response -> {
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 if (response.has("error")) {
-                    sender.sendMessage("§c" + response.get("error").getAsString());
+                    sender.sendMessage(lang.getMessage("command.ai_failed", response.get("error").getAsString()));
                     return;
                 }
 
                 JsonArray choices = response.getAsJsonArray("choices");
                 if (choices == null || choices.size() == 0) {
-                    sender.sendMessage("§cAI 未返回有效响应");
+                    sender.sendMessage(lang.getMessage("command.ai_failed", "Invalid response"));
                     return;
                 }
 
@@ -73,7 +75,7 @@ public class OpsCommandHandler {
                     JsonArray toolCalls = message.getAsJsonArray("tool_calls");
 
                     if (iteration == 0) {
-                        sender.sendMessage("§e§l===== AI 开始执行 =====");
+                        sender.sendMessage(lang.getMessage("agent.start"));
                     }
 
                     JsonObject assistantMsg = new JsonObject();
@@ -91,11 +93,11 @@ public class OpsCommandHandler {
                         String result = executeToolCall(sender, playerName, playerId, toolName, args);
 
                         if (!toolName.equals("check_permission")) {
-                            sender.sendMessage("§7步骤 " + (iteration + 1) + "." + (i + 1) + ": §f" + toolName);
-                            sender.sendMessage("§a结果: " + result);
+                            sender.sendMessage(lang.getMessage("agent.step", iteration + 1, i + 1, toolName));
+                            sender.sendMessage(lang.getMessage("agent.result", result));
                         }
 
-                        plugin.getArkOpsLogger().logAction(playerName, "AI 工具调用: " + toolName, result);
+                        plugin.getArkOpsLogger().logAction(playerName, lang.getMessage("ai.tool_log", toolName), result);
 
                         JsonObject toolResult = new JsonObject();
                         toolResult.addProperty("role", "tool");
@@ -109,18 +111,18 @@ public class OpsCommandHandler {
                     String content = message.get("content").getAsString();
 
                     if (iteration == 0) {
-                        sender.sendMessage("§b§l[ArkOps-Ai] §7" + content);
-                        plugin.getArkOpsLogger().logAction(playerName, "AI 问答: " + originalCommand, "成功");
+                        sender.sendMessage(lang.getMessage("ai.response", content));
+                        plugin.getArkOpsLogger().logAction(playerName, lang.getMessage("ai.qa_log", originalCommand), "Success");
                     } else {
-                        sender.sendMessage("§e§l===== 执行完成 =====");
-                        sender.sendMessage("§b§l[ArkOps-Ai] §7" + content);
-                        plugin.getArkOpsLogger().logAction(playerName, "AI Agent 完成: " + originalCommand, "成功");
+                        sender.sendMessage(lang.getMessage("agent.complete"));
+                        sender.sendMessage(lang.getMessage("ai.response", content));
+                        plugin.getArkOpsLogger().logAction(playerName, lang.getMessage("ai.agent_log", originalCommand), "Success");
                     }
                 }
             });
         }).exceptionally(ex -> {
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                sender.sendMessage("§cAI 请求失败: " + ex.getMessage());
+                sender.sendMessage(lang.getMessage("command.ai_failed", ex.getMessage()));
             });
             return null;
         });
@@ -137,7 +139,7 @@ public class OpsCommandHandler {
                     return actionManager.stopServer(sender);
                 case "reload_server":
                     actionManager.reloadServer(sender);
-                    return "服务器已重载";
+                    return lang.getMessage("server.reload");
                 case "hot_reload_plugin":
                     return actionManager.hotReloadPlugin(sender, args.get("plugin_name").getAsString());
                 case "hot_unload_plugin":
@@ -182,10 +184,10 @@ public class OpsCommandHandler {
                 case "get_online_players":
                     return String.join(", ", actionManager.getOnlinePlayers());
                 default:
-                    return "未知工具: " + toolName;
+                    return lang.getMessage("error.general", "Unknown tool: " + toolName);
             }
         } catch (Exception e) {
-            return "执行失败: " + e.getMessage();
+            return lang.getMessage("error.general", e.getMessage());
         }
     }
 
@@ -195,9 +197,9 @@ public class OpsCommandHandler {
         PermissionManager.PermissionLevel current = permissionManager.getPermissionLevel(playerId);
 
         if (current.getLevel() >= required.getLevel()) {
-            return "权限检查通过。当前权限: " + current.getDisplayName();
+            return lang.getMessage("permission.check_passed", current.getDisplayName());
         } else {
-            return "权限不足。当前: " + current.getDisplayName() + ", 需要: " + required.getDisplayName();
+            return lang.getMessage("permission.insufficient", current.getDisplayName(), required.getDisplayName());
         }
     }
 
@@ -205,58 +207,58 @@ public class OpsCommandHandler {
         org.bukkit.OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(playerName);
         PermissionManager.PermissionLevel permLevel = PermissionManager.PermissionLevel.fromString(level);
         permissionManager.setPermissionLevel(offlinePlayer.getUniqueId(), playerName, permLevel);
-        return "已将 " + playerName + " 的权限设置为: " + permLevel.getDisplayName();
+        return lang.getMessage("permission.set_success", playerName, permLevel.getDisplayName());
     }
 
     private String buildSystemPrompt(String playerName, PermissionManager.PermissionLevel level, CommandSender sender) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("你是 ArkOps-Ai，一个 Minecraft Purpur 服务器的 AI 运维助手。\n\n");
+        prompt.append("You are ArkOps-Ai, an AI operations assistant for a Minecraft Purpur server.\n\n");
 
-        prompt.append("当前请求者: ").append(playerName).append("\n");
-        prompt.append("请求者权限等级: ").append(level.getDisplayName()).append("\n\n");
+        prompt.append("Current requester: ").append(playerName).append("\n");
+        prompt.append("Requester permission level: ").append(level.getDisplayName()).append("\n\n");
 
-        prompt.append("服务器信息:\n");
-        prompt.append("- 版本: ").append(plugin.getServer().getVersion()).append("\n");
-        prompt.append("- 在线玩家: ").append(plugin.getServer().getOnlinePlayers().size()).append("\n");
-        prompt.append("- 插件数量: ").append(plugin.getServer().getPluginManager().getPlugins().length).append("\n\n");
+        prompt.append("Server info:\n");
+        prompt.append("- Version: ").append(plugin.getServer().getVersion()).append("\n");
+        prompt.append("- Online players: ").append(plugin.getServer().getOnlinePlayers().size()).append("\n");
+        prompt.append("- Plugin count: ").append(plugin.getServer().getPluginManager().getPlugins().length).append("\n\n");
 
-        prompt.append("工作规则:\n");
-        prompt.append("1. 你必须先检查执行者是否有足够的权限执行操作\n");
-        prompt.append("2. 对于复杂任务，分步骤执行（例如热卸载插件：先检查权限，再查找插件，最后执行）\n");
-        prompt.append("3. 每个操作都要记录日志\n");
-        prompt.append("4. 你可以连续多轮调用工具来完成复杂任务\n");
-        prompt.append("5. 当所有步骤完成后，返回简洁的中文总结\n");
-        prompt.append("6. 如果权限不足，直接返回错误信息，不要继续执行\n\n");
+        prompt.append("Working rules:\n");
+        prompt.append("1. You must check if the executor has sufficient permission before any operation\n");
+        prompt.append("2. For complex tasks, execute in steps (e.g., hot-unload a plugin: check permission, find plugin, then execute)\n");
+        prompt.append("3. Log every operation\n");
+        prompt.append("4. You can call tools across multiple rounds to complete complex tasks\n");
+        prompt.append("5. When all steps are done, return a concise summary\n");
+        prompt.append("6. If permission is insufficient, return error directly, do not continue\n\n");
 
-        prompt.append("权限等级说明:\n");
-        prompt.append("- DISABLED: 无任何权限\n");
-        prompt.append("- PLAYER: 只能问答游戏问题\n");
-        prompt.append("- ADMIN: 可执行插件管理、玩家管理、世界管理、命令执行\n");
-        prompt.append("- SUPER_ADMIN: 拥有所有权限，包括服务器开关、封禁玩家、权限设置\n\n");
+        prompt.append("Permission levels:\n");
+        prompt.append("- DISABLED: No permissions\n");
+        prompt.append("- PLAYER: Can only ask game-related questions\n");
+        prompt.append("- ADMIN: Can manage plugins, players, worlds, and execute commands\n");
+        prompt.append("- SUPER_ADMIN: Has all permissions, including server control, banning players, permission settings\n\n");
 
-        prompt.append("可用工具:\n");
-        prompt.append("- check_permission: 检查权限\n");
-        prompt.append("- restart_server: 重启服务器 (SUPER_ADMIN)\n");
-        prompt.append("- stop_server: 关闭服务器 (SUPER_ADMIN)\n");
-        prompt.append("- hot_reload_plugin: 热重载插件 (ADMIN)\n");
-        prompt.append("- hot_unload_plugin: 热卸载插件 (ADMIN)\n");
-        prompt.append("- hot_load_plugin: 热加载插件 (ADMIN)\n");
-        prompt.append("- list_plugins: 列出插件及功能 (ADMIN)\n");
-        prompt.append("- execute_command: 执行任意命令 (ADMIN)\n");
-        prompt.append("- set_game_time: 设置游戏时间 (ADMIN)\n");
-        prompt.append("- set_weather: 设置天气 (ADMIN)\n");
-        prompt.append("- set_game_mode: 设置游戏模式 (ADMIN)\n");
-        prompt.append("- get_server_info: 获取服务器信息 (ADMIN)\n");
-        prompt.append("- get_player_info: 获取玩家信息 (ADMIN)\n");
-        prompt.append("- teleport_player: 传送玩家 (ADMIN)\n");
-        prompt.append("- give_item: 给予物品 (ADMIN)\n");
-        prompt.append("- kick_player: 踢出玩家 (ADMIN)\n");
-        prompt.append("- ban_player: 封禁玩家 (SUPER_ADMIN)\n");
-        prompt.append("- set_permission: 设置玩家权限 (SUPER_ADMIN)\n");
-        prompt.append("- get_online_players: 获取在线玩家列表\n\n");
+        prompt.append("Available tools:\n");
+        prompt.append("- check_permission: Check permission\n");
+        prompt.append("- restart_server: Restart server (SUPER_ADMIN)\n");
+        prompt.append("- stop_server: Stop server (SUPER_ADMIN)\n");
+        prompt.append("- hot_reload_plugin: Hot-reload plugin (ADMIN)\n");
+        prompt.append("- hot_unload_plugin: Hot-unload plugin (ADMIN)\n");
+        prompt.append("- hot_load_plugin: Hot-load plugin (ADMIN)\n");
+        prompt.append("- list_plugins: List plugins with descriptions (ADMIN)\n");
+        prompt.append("- execute_command: Execute any command (ADMIN)\n");
+        prompt.append("- set_game_time: Set game time (ADMIN)\n");
+        prompt.append("- set_weather: Set weather (ADMIN)\n");
+        prompt.append("- set_game_mode: Set game mode (ADMIN)\n");
+        prompt.append("- get_server_info: Get server info (ADMIN)\n");
+        prompt.append("- get_player_info: Get player info (ADMIN)\n");
+        prompt.append("- teleport_player: Teleport player (ADMIN)\n");
+        prompt.append("- give_item: Give item (ADMIN)\n");
+        prompt.append("- kick_player: Kick player (ADMIN)\n");
+        prompt.append("- ban_player: Ban player (SUPER_ADMIN)\n");
+        prompt.append("- set_permission: Set player permission (SUPER_ADMIN)\n");
+        prompt.append("- get_online_players: Get online player list\n\n");
 
-        prompt.append("重要: 在执行任何操作前，必须先调用 check_permission 检查权限。如果权限不足，直接返回错误信息，不要继续执行。\n");
-        prompt.append("对于复杂操作，请分步骤调用工具。\n");
+        prompt.append("Important: Before any operation, you must call check_permission first. If permission is insufficient, return error directly.\n");
+        prompt.append("For complex operations, call tools in steps.\n");
 
         return prompt.toString();
     }
@@ -264,60 +266,60 @@ public class OpsCommandHandler {
     private JsonArray buildTools(PermissionManager.PermissionLevel level) {
         JsonArray tools = new JsonArray();
 
-        tools.add(createTool("check_permission", "检查执行者是否有足够权限",
-                createPropsBuilder().add("required_level", "string", "需要的权限等级: DISABLED, PLAYER, ADMIN, SUPER_ADMIN", true).build()));
+        tools.add(createTool("check_permission", "Check if the executor has sufficient permission",
+                createPropsBuilder().add("required_level", "string", "Required permission level: DISABLED, PLAYER, ADMIN, SUPER_ADMIN", true).build()));
 
         if (level.getLevel() >= PermissionManager.PermissionLevel.SUPER_ADMIN.getLevel()) {
-            tools.add(createTool("restart_server", "重启服务器", createPropsBuilder().build()));
-            tools.add(createTool("stop_server", "关闭服务器", createPropsBuilder().build()));
-            tools.add(createTool("ban_player", "封禁玩家",
+            tools.add(createTool("restart_server", "Restart the server", createPropsBuilder().build()));
+            tools.add(createTool("stop_server", "Stop the server", createPropsBuilder().build()));
+            tools.add(createTool("ban_player", "Ban a player",
                     createPropsBuilder()
-                            .add("player", "string", "玩家名称", true)
-                            .add("reason", "string", "封禁原因", false).build()));
-            tools.add(createTool("set_permission", "设置玩家权限",
+                            .add("player", "string", "Player name", true)
+                            .add("reason", "string", "Ban reason", false).build()));
+            tools.add(createTool("set_permission", "Set player permission",
                     createPropsBuilder()
-                            .add("player", "string", "玩家名称", true)
-                            .add("level", "string", "权限等级: DISABLED, PLAYER, ADMIN, SUPER_ADMIN", true).build()));
+                            .add("player", "string", "Player name", true)
+                            .add("level", "string", "Permission level: DISABLED, PLAYER, ADMIN, SUPER_ADMIN", true).build()));
         }
 
         if (level.getLevel() >= PermissionManager.PermissionLevel.ADMIN.getLevel()) {
-            tools.add(createTool("hot_reload_plugin", "热重载插件",
-                    createPropsBuilder().add("plugin_name", "string", "插件名称", true).build()));
-            tools.add(createTool("hot_unload_plugin", "热卸载插件",
-                    createPropsBuilder().add("plugin_name", "string", "插件名称", true).build()));
-            tools.add(createTool("hot_load_plugin", "热加载插件",
-                    createPropsBuilder().add("plugin_name", "string", "插件名称", true).build()));
-            tools.add(createTool("list_plugins", "列出所有插件及功能介绍", createPropsBuilder().build()));
-            tools.add(createTool("execute_command", "执行服务器命令",
-                    createPropsBuilder().add("command", "string", "要执行的命令", true).build()));
-            tools.add(createTool("set_game_time", "设置游戏时间",
-                    createPropsBuilder().add("time", "string", "时间: day, night, noon, midnight, sunrise, sunset 或数字", true).build()));
-            tools.add(createTool("set_weather", "设置天气",
-                    createPropsBuilder().add("weather", "string", "天气: clear, rain, thunder", true).build()));
-            tools.add(createTool("set_game_mode", "设置游戏模式",
+            tools.add(createTool("hot_reload_plugin", "Hot-reload a plugin",
+                    createPropsBuilder().add("plugin_name", "string", "Plugin name", true).build()));
+            tools.add(createTool("hot_unload_plugin", "Hot-unload a plugin",
+                    createPropsBuilder().add("plugin_name", "string", "Plugin name", true).build()));
+            tools.add(createTool("hot_load_plugin", "Hot-load a plugin",
+                    createPropsBuilder().add("plugin_name", "string", "Plugin name", true).build()));
+            tools.add(createTool("list_plugins", "List all plugins with descriptions", createPropsBuilder().build()));
+            tools.add(createTool("execute_command", "Execute a server command",
+                    createPropsBuilder().add("command", "string", "Command to execute", true).build()));
+            tools.add(createTool("set_game_time", "Set game time",
+                    createPropsBuilder().add("time", "string", "Time: day, night, noon, midnight, sunrise, sunset or number", true).build()));
+            tools.add(createTool("set_weather", "Set weather",
+                    createPropsBuilder().add("weather", "string", "Weather: clear, rain, thunder", true).build()));
+            tools.add(createTool("set_game_mode", "Set game mode",
                     createPropsBuilder()
-                            .add("player", "string", "玩家名称", true)
-                            .add("game_mode", "string", "游戏模式: SURVIVAL, CREATIVE, ADVENTURE, SPECTATOR", true).build()));
-            tools.add(createTool("get_server_info", "获取服务器状态信息", createPropsBuilder().build()));
-            tools.add(createTool("get_player_info", "获取玩家详细信息",
-                    createPropsBuilder().add("player", "string", "玩家名称", true).build()));
-            tools.add(createTool("teleport_player", "传送玩家到另一个玩家",
+                            .add("player", "string", "Player name", true)
+                            .add("game_mode", "string", "Game mode: SURVIVAL, CREATIVE, ADVENTURE, SPECTATOR", true).build()));
+            tools.add(createTool("get_server_info", "Get server status info", createPropsBuilder().build()));
+            tools.add(createTool("get_player_info", "Get player detailed info",
+                    createPropsBuilder().add("player", "string", "Player name", true).build()));
+            tools.add(createTool("teleport_player", "Teleport a player to another player",
                     createPropsBuilder()
-                            .add("target", "string", "要被传送的玩家", true)
-                            .add("destination", "string", "目标玩家", true).build()));
-            tools.add(createTool("give_item", "给予玩家物品",
+                            .add("target", "string", "Player to teleport", true)
+                            .add("destination", "string", "Target player", true).build()));
+            tools.add(createTool("give_item", "Give item to player",
                     createPropsBuilder()
-                            .add("player", "string", "玩家名称", true)
-                            .add("item", "string", "物品 ID", true)
-                            .add("amount", "integer", "数量", false).build()));
-            tools.add(createTool("kick_player", "踢出玩家",
+                            .add("player", "string", "Player name", true)
+                            .add("item", "string", "Item ID", true)
+                            .add("amount", "integer", "Amount", false).build()));
+            tools.add(createTool("kick_player", "Kick a player",
                     createPropsBuilder()
-                            .add("player", "string", "玩家名称", true)
-                            .add("reason", "string", "踢出原因", false).build()));
+                            .add("player", "string", "Player name", true)
+                            .add("reason", "string", "Kick reason", false).build()));
         }
 
-        tools.add(createTool("get_online_players", "获取当前在线玩家列表", createPropsBuilder().build()));
-        tools.add(createTool("reload_server", "重载服务器配置", createPropsBuilder().build()));
+        tools.add(createTool("get_online_players", "Get current online player list", createPropsBuilder().build()));
+        tools.add(createTool("reload_server", "Reload server configuration", createPropsBuilder().build()));
 
         return tools;
     }

@@ -1,14 +1,17 @@
-# ArkOps-Ai 配置文件
+# ArkOps-Ai Configuration File
 
-# OpenAI API 配置
+# Language setting (en, zh)
+language: "en"
+
+# OpenAI API Configuration
 openai:
-  # OpenAI API 密钥
+  # OpenAI API Key
   api-key: "YOUR_API_KEY_HERE"
-  # 使用的模型
+  # Model to use
   model: "gpt-5.4"
-  # API 超时时间 (秒)
+  # API timeout (seconds)
   timeout: 60
-  # 最大响应令牌数
+  # Max response tokens
   max-tokens: 2000
-  # 温度 (创造性，0-1)
+  # Temperature (creativity, 0-1)
   temperature: 0.7

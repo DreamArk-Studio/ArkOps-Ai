@@ -1,0 +1,72 @@
+# ArkOps-Ai English Language File
+
+prefix: "&b[ArkOps-Ai] &7"
+
+# Command Messages
+command:
+  no_permission: "&cYou don't have permission to execute this command!"
+  player_only: "&cThis command can only be executed by players!"
+  usage: "&cUsage: /ops <command>"
+  ai_analyzing: "&eAI is analyzing request..."
+  ai_failed: "&cAI request failed: {0}"
+  max_iterations: "&cAI has reached maximum iterations, stopping execution."
+
+# Permission Messages
+permission:
+  check_passed: "Permission check passed. Current level: {0}"
+  insufficient: "Insufficient permission. Current: {0}, Required: {1}"
+  set_success: "Set {0}''s permission to: {1}"
+
+# Agent Messages
+agent:
+  start: "&e&l===== AI Starting Execution ====="
+  complete: "&e&l===== Execution Complete ====="
+  step: "&7Step {0}.{1}: &f{2}"
+  result: "&aResult: {0}"
+
+# Server Messages
+server:
+  restart: "Server is restarting..."
+  stop: "Server is stopping..."
+  reload: "Server configuration reloaded"
+  info: "Server: {0} | Players: {1}/{2} | TPS: {3}"
+
+# Plugin Messages
+plugin:
+  list: "=== Plugin List ==="
+  reload_success: "Plugin {0} reloaded successfully"
+  unload_success: "Plugin {0} unloaded successfully"
+  load_success: "Plugin {0} loaded successfully"
+  not_found: "Plugin {0} not found"
+
+# Player Messages
+player:
+  info: "Player: {0} | Health: {1} | Gamemode: {2} | Location: {3}"
+  gamemode_set: "Set {0}''s gamemode to {1}"
+  teleported: "Teleported {0} to {1}"
+  kicked: "Kicked {0}: {1}"
+  banned: "Banned {0}: {1}"
+  item_given: "Given {0}x {1} to {2}"
+
+# World Messages
+world:
+  time_set: "Time set to {0}"
+  weather_set: "Weather set to {0}"
+
+# Online Players
+online_players:
+  header: "=== Online Players ({0}) ==="
+  list: "{0}"
+
+# AI Messages
+ai:
+  response: "&b§l[ArkOps-Ai] &7{0}"
+  tool_log: "AI Tool Call: {0}"
+  qa_log: "AI Q&A: {0}"
+  agent_log: "AI Agent Complete: {0}"
+
+# Error Messages
+error:
+  general: "Error: {0}"
+  player_not_found: "Player {0} not found"
+  command_failed: "Command execution failed: {0}"

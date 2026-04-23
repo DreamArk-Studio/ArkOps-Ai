@@ -1,0 +1,72 @@
+# ArkOps-Ai 中文语言文件
+
+prefix: "&b[ArkOps-Ai] &7"
+
+# 命令消息
+command:
+  no_permission: "&c你没有权限执行此命令！"
+  player_only: "&c此命令只能由玩家执行！"
+  usage: "&c用法: /ops <命令>"
+  ai_analyzing: "&eAI 正在分析请求..."
+  ai_failed: "&cAI 请求失败: {0}"
+  max_iterations: "&cAI 已达到最大迭代次数，停止执行。"
+
+# 权限消息
+permission:
+  check_passed: "权限检查通过。当前权限: {0}"
+  insufficient: "权限不足。当前: {0}, 需要: {1}"
+  set_success: "已将 {0} 的权限设置为: {1}"
+
+# Agent 消息
+agent:
+  start: "&e&l===== AI 开始执行 ====="
+  complete: "&e&l===== 执行完成 ====="
+  step: "&7步骤 {0}.{1}: &f{2}"
+  result: "&a结果: {0}"
+
+# 服务器消息
+server:
+  restart: "服务器正在重启..."
+  stop: "服务器正在关闭..."
+  reload: "服务器配置已重载"
+  info: "服务器: {0} | 玩家: {1}/{2} | TPS: {3}"
+
+# 插件消息
+plugin:
+  list: "=== 插件列表 ==="
+  reload_success: "插件 {0} 重载成功"
+  unload_success: "插件 {0} 卸载成功"
+  load_success: "插件 {0} 加载成功"
+  not_found: "未找到插件 {0}"
+
+# 玩家消息
+player:
+  info: "玩家: {0} | 生命值: {1} | 游戏模式: {2} | 位置: {3}"
+  gamemode_set: "已将 {0} 的游戏模式设置为 {1}"
+  teleported: "已将 {0} 传送到 {1}"
+  kicked: "已踢出 {0}: {1}"
+  banned: "已封禁 {0}: {1}"
+  item_given: "已给予 {2} {0} 个 {1}"
+
+# 世界消息
+world:
+  time_set: "时间已设置为 {0}"
+  weather_set: "天气已设置为 {0}"
+
+# 在线玩家
+online_players:
+  header: "=== 在线玩家 ({0}) ==="
+  list: "{0}"
+
+# AI 消息
+ai:
+  response: "&b§l[ArkOps-Ai] &7{0}"
+  tool_log: "AI 工具调用: {0}"
+  qa_log: "AI 问答: {0}"
+  agent_log: "AI Agent 完成: {0}"
+
+# 错误消息
+error:
+  general: "错误: {0}"
+  player_not_found: "未找到玩家 {0}"
+  command_failed: "命令执行失败: {0}"
