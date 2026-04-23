@@ -16,12 +16,13 @@ public class OpenAiManager {
     private final OkHttpClient client;
     private final String apiKey;
     private final String model;
-    private static final String API_URL = "https://api.deepseek.com/chat/completions";
+    private final String apiUrl;
 
     public OpenAiManager(ArkOpsAi plugin) {
         this.plugin = plugin;
-        this.apiKey = plugin.getConfig().getString("deepseek.api-key", "");
-        this.model = plugin.getConfig().getString("deepseek.model", "deepseek-chat");
+        this.apiKey = plugin.getConfig().getString("dashscope.api-key", "");
+        this.model = plugin.getConfig().getString("dashscope.model", "qwen3.5-plus");
+        this.apiUrl = plugin.getConfig().getString("dashscope.api-url", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(60, TimeUnit.SECONDS)
                 .readTimeout(120, TimeUnit.SECONDS)
@@ -56,7 +57,7 @@ public class OpenAiManager {
                 );
 
                 Request request = new Request.Builder()
-                        .url(API_URL)
+                        .url(apiUrl)
                         .header("Authorization", "Bearer " + apiKey)
                         .header("Content-Type", "application/json")
                         .post(body)
@@ -105,7 +106,7 @@ public class OpenAiManager {
                 requestBody.addProperty("model", model);
                 requestBody.add("messages", messages);
                 requestBody.add("tools", tools);
-                requestBody.addProperty("max_completion_tokens", 2000);
+                requestBody.addProperty("max_tokens", 2000);
                 requestBody.addProperty("temperature", 0.3);
 
                 RequestBody body = RequestBody.create(
@@ -114,7 +115,7 @@ public class OpenAiManager {
                 );
 
                 Request request = new Request.Builder()
-                        .url(API_URL)
+                        .url(apiUrl)
                         .header("Authorization", "Bearer " + apiKey)
                         .header("Content-Type", "application/json")
                         .post(body)
@@ -153,7 +154,7 @@ public class OpenAiManager {
                 requestBody.addProperty("model", model);
                 requestBody.add("messages", messages);
                 requestBody.add("tools", tools);
-                requestBody.addProperty("max_completion_tokens", 2000);
+                requestBody.addProperty("max_tokens", 2000);
                 requestBody.addProperty("temperature", 0.3);
 
                 RequestBody body = RequestBody.create(
@@ -162,7 +163,7 @@ public class OpenAiManager {
                 );
 
                 Request request = new Request.Builder()
-                        .url(API_URL)
+                        .url(apiUrl)
                         .header("Authorization", "Bearer " + apiKey)
                         .header("Content-Type", "application/json")
                         .post(body)

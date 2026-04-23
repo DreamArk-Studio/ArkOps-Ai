@@ -3,15 +3,32 @@
 # 语言设置 (en, zh)
 language: "zh"
 
-# DeepSeek API 配置
-deepseek:
-  # DeepSeek API Key
+# 阿里云百炼 API 配置
+dashscope:
+  # 阿里云百炼 API Key
   api-key: "YOUR_API_KEY_HERE"
   # 使用的模型
-  model: "deepseek-chat"
+  model: "qwen3.5-plus"
+  # API 地址 (北京地域)
+  api-url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
   # API 超时时间 (秒)
   timeout: 60
   # 最大响应 token 数
   max-tokens: 2000
   # 温度参数 (创造性, 0-2)
   temperature: 1.0
+
+# 频率限制配置
+rate-limit:
+  # 是否启用频率限制
+  enabled: true
+  # 时间窗口 (秒)
+  window-seconds: 60
+  # 普通玩家 (PLAYER) 在时间窗口内的最大请求次数
+  max-requests-player: 5
+  # 管理员 (ADMIN) 在时间窗口内的最大请求次数 (0 表示不限制)
+  max-requests-admin: 0
+  # 超级管理员 (SUPER_ADMIN) 在时间窗口内的最大请求次数 (0 表示不限制)
+  max-requests-super-admin: 0
+  # 控制台 (CONSOLE) 在时间窗口内的最大请求次数 (0 表示不限制)
+  max-requests-console: 0

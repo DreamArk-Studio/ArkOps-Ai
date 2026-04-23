@@ -26,6 +26,7 @@ public final class ArkOpsAi extends JavaPlugin {
         this.logger = new Logger(this);
         this.languageManager = new LanguageManager(this);
 
+        this.logger.info("🏢筑梦方舟网络科技工作室版权所有");
         this.logger.info("ArkOps-Ai 正在初始化...");
 
         this.permissionManager = new PermissionManager(this);

@@ -65,6 +65,10 @@ ai:
   qa_log: "ArkOpsAI Q&A: {0}"
   agent_log: "ArkOpsAI Agent Complete: {0}"
 
+# Rate Limit Messages
+rate_limit:
+  exceeded: "§cRequest rate exceeded, please try again later."
+
 # Error Messages
 error:
   general: "Error: {0}"

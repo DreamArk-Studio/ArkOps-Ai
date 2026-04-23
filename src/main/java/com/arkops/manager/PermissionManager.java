@@ -78,6 +78,9 @@ public class PermissionManager {
     }
 
     public PermissionLevel getPermissionLevel(UUID playerId) {
+        if (playerId == null) {
+            return PermissionLevel.CONSOLE;
+        }
         return playerPermissions.getOrDefault(playerId, PermissionLevel.PLAYER);
     }
 
