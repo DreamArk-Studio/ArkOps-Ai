@@ -35,7 +35,7 @@ public final class ArkOpsAi extends JavaPlugin {
         getCommand("ops").setExecutor(new OpsCommandExecutor(this));
 
         this.logger.info("ArkOps-Ai 已成功启用!");
-        this.logger.info("使用 /ops 命令开始 AI 运维管理");
+        this.logger.info("使用 /ops 命令开始 ArkOpsAI 运维管理");
     }
 
     @Override

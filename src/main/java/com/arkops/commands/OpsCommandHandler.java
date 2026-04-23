@@ -212,7 +212,7 @@ public class OpsCommandHandler {
 
     private String buildSystemPrompt(String playerName, PermissionManager.PermissionLevel level, CommandSender sender) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are ArkOps-Ai, an AI operations assistant for a Minecraft Purpur server.\n\n");
+        prompt.append("You are ArkOpsAI, an ArkOpsAI operations assistant for a Minecraft Purpur server.\n\n");
 
         prompt.append("Current requester: ").append(playerName).append("\n");
         prompt.append("Requester permission level: ").append(level.getDisplayName()).append("\n\n");

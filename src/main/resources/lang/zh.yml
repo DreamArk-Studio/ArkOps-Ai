@@ -7,9 +7,9 @@ command:
   no_permission: "§c你没有权限执行此命令！"
   player_only: "§c此命令只能由玩家执行！"
   usage: "§c用法: /ops <命令>"
-  ai_analyzing: "§eAI 正在分析请求..."
-  ai_failed: "§cAI 请求失败: {0}"
-  max_iterations: "§cAI 已达到最大迭代次数，停止执行。"
+  ai_analyzing: "§eArkOpsAI 正在分析请求..."
+  ai_failed: "§cArkOpsAI 请求失败: {0}"
+  max_iterations: "§cArkOpsAI 已达到最大迭代次数，停止执行。"
 
 # 权限消息
 permission:
@@ -19,7 +19,7 @@ permission:
 
 # Agent 消息
 agent:
-  start: "§e§l===== AI 开始执行 ====="
+  start: "§e§l===== ArkOpsAI 开始执行 ====="
   complete: "§e§l===== 执行完成 ====="
   step: "§7步骤 {0}.{1}: §f{2}"
   result: "§a结果: {0}"
@@ -58,12 +58,12 @@ online_players:
   header: "=== 在线玩家 ({0}) ==="
   list: "{0}"
 
-# AI 消息
+# ArkOpsAI 消息
 ai:
   response: "§b§l[ArkOps-Ai] §7{0}"
-  tool_log: "AI 工具调用: {0}"
-  qa_log: "AI 问答: {0}"
-  agent_log: "AI Agent 完成: {0}"
+  tool_log: "ArkOpsAI 工具调用: {0}"
+  qa_log: "ArkOpsAI 问答: {0}"
+  agent_log: "ArkOpsAI Agent 完成: {0}"
 
 # 错误消息
 error:

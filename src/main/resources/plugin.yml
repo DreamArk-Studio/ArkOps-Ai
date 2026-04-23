@@ -3,7 +3,7 @@ version: '${project.version}'
 main: com.arkops.ArkOpsAi
 api-version: '1.21'
 author: ArkOps Team
-description: AI-powered server operations management plugin for PurpurMC
+description: ArkOpsAI-powered server operations management plugin for PurpurMC
 website: https://github.com/ArkOps
 
 commands:

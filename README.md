@@ -1,11 +1,11 @@
 # ArkOps-Ai
 
-ArkOps-Ai 是一个基于 AI 的服务器运维管理插件，适用于 PurpurMC (Minecraft)。它使服务器管理员能够通过自然语言命令来管理服务器，由 DeepSeek 的大语言模型提供驱动。
+ArkOps-Ai 是一个基于 ArkOpsAI 的服务器运维管理插件，适用于 PurpurMC (Minecraft)。它使服务器管理员能够通过自然语言命令来管理服务器，由 DeepSeek 的大语言模型提供驱动。
 
 ## 功能特性
 
-- **AI 驱动运维**：通过 `/ops` 命令使用自然语言管理服务器
-- **多步骤 Agent 系统**：AI 可以执行复杂的多步骤任务，并自动进行权限检查
+- **ArkOpsAI 驱动运维**：通过 `/ops` 命令使用自然语言管理服务器
+- **多步骤 Agent 系统**：ArkOpsAI 可以执行复杂的多步骤任务，并自动进行权限检查
 - **基于权限的访问控制**：四级权限系统确保操作安全
 - **国际化支持**：支持英文和中文语言
 - **全面的服务器管理**：重启、停止、重载、插件管理、玩家管理、世界管理等
@@ -87,7 +87,7 @@ players:
 
 ### 自然语言示例
 
-AI 能够理解自然语言，因此你可以使用灵活的命令：
+ArkOpsAI 能够理解自然语言，因此你可以使用灵活的命令：
 
 - `/ops restart the server please`
 - `/ops what plugins are installed?`

@@ -7,9 +7,9 @@ command:
   no_permission: "§cYou don't have permission to execute this command!"
   player_only: "§cThis command can only be executed by players!"
   usage: "§cUsage: /ops <command>"
-  ai_analyzing: "§eAI is analyzing request..."
-  ai_failed: "§cAI request failed: {0}"
-  max_iterations: "§cAI has reached maximum iterations, stopping execution."
+  ai_analyzing: "§eArkOpsAI is analyzing request..."
+  ai_failed: "§cArkOpsAI request failed: {0}"
+  max_iterations: "§cArkOpsAI has reached maximum iterations, stopping execution."
 
 # Permission Messages
 permission:
@@ -19,7 +19,7 @@ permission:
 
 # Agent Messages
 agent:
-  start: "§e§l===== AI Starting Execution ====="
+  start: "§e§l===== ArkOpsAI Starting Execution ====="
   complete: "§e§l===== Execution Complete ====="
   step: "§7Step {0}.{1}: §f{2}"
   result: "§aResult: {0}"
@@ -58,12 +58,12 @@ online_players:
   header: "=== Online Players ({0}) ==="
   list: "{0}"
 
-# AI Messages
+# ArkOpsAI Messages
 ai:
   response: "§b§l[ArkOps-Ai] §7{0}"
-  tool_log: "AI Tool Call: {0}"
-  qa_log: "AI Q&A: {0}"
-  agent_log: "AI Agent Complete: {0}"
+  tool_log: "ArkOpsAI Tool Call: {0}"
+  qa_log: "ArkOpsAI Q&A: {0}"
+  agent_log: "ArkOpsAI Agent Complete: {0}"
 
 # Error Messages
 error:
