@@ -1,15 +1,15 @@
 # ArkOps-Ai 中文语言文件
 
-prefix: "&b[ArkOps-Ai] &7"
+prefix: "§b[ArkOps-Ai] §7"
 
 # 命令消息
 command:
-  no_permission: "&c你没有权限执行此命令！"
-  player_only: "&c此命令只能由玩家执行！"
-  usage: "&c用法: /ops <命令>"
-  ai_analyzing: "&eAI 正在分析请求..."
-  ai_failed: "&cAI 请求失败: {0}"
-  max_iterations: "&cAI 已达到最大迭代次数，停止执行。"
+  no_permission: "§c你没有权限执行此命令！"
+  player_only: "§c此命令只能由玩家执行！"
+  usage: "§c用法: /ops <命令>"
+  ai_analyzing: "§eAI 正在分析请求..."
+  ai_failed: "§cAI 请求失败: {0}"
+  max_iterations: "§cAI 已达到最大迭代次数，停止执行。"
 
 # 权限消息
 permission:
@@ -19,10 +19,10 @@ permission:
 
 # Agent 消息
 agent:
-  start: "&e&l===== AI 开始执行 ====="
-  complete: "&e&l===== 执行完成 ====="
-  step: "&7步骤 {0}.{1}: &f{2}"
-  result: "&a结果: {0}"
+  start: "§e§l===== AI 开始执行 ====="
+  complete: "§e§l===== 执行完成 ====="
+  step: "§7步骤 {0}.{1}: §f{2}"
+  result: "§a结果: {0}"
 
 # 服务器消息
 server:
@@ -60,7 +60,7 @@ online_players:
 
 # AI 消息
 ai:
-  response: "&b§l[ArkOps-Ai] &7{0}"
+  response: "§b§l[ArkOps-Ai] §7{0}"
   tool_log: "AI 工具调用: {0}"
   qa_log: "AI 问答: {0}"
   agent_log: "AI Agent 完成: {0}"

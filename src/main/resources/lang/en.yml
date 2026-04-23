@@ -1,15 +1,15 @@
 # ArkOps-Ai English Language File
 
-prefix: "&b[ArkOps-Ai] &7"
+prefix: "§b[ArkOps-Ai] §7"
 
 # Command Messages
 command:
-  no_permission: "&cYou don't have permission to execute this command!"
-  player_only: "&cThis command can only be executed by players!"
-  usage: "&cUsage: /ops <command>"
-  ai_analyzing: "&eAI is analyzing request..."
-  ai_failed: "&cAI request failed: {0}"
-  max_iterations: "&cAI has reached maximum iterations, stopping execution."
+  no_permission: "§cYou don't have permission to execute this command!"
+  player_only: "§cThis command can only be executed by players!"
+  usage: "§cUsage: /ops <command>"
+  ai_analyzing: "§eAI is analyzing request..."
+  ai_failed: "§cAI request failed: {0}"
+  max_iterations: "§cAI has reached maximum iterations, stopping execution."
 
 # Permission Messages
 permission:
@@ -19,10 +19,10 @@ permission:
 
 # Agent Messages
 agent:
-  start: "&e&l===== AI Starting Execution ====="
-  complete: "&e&l===== Execution Complete ====="
-  step: "&7Step {0}.{1}: &f{2}"
-  result: "&aResult: {0}"
+  start: "§e§l===== AI Starting Execution ====="
+  complete: "§e§l===== Execution Complete ====="
+  step: "§7Step {0}.{1}: §f{2}"
+  result: "§aResult: {0}"
 
 # Server Messages
 server:
@@ -60,7 +60,7 @@ online_players:
 
 # AI Messages
 ai:
-  response: "&b§l[ArkOps-Ai] &7{0}"
+  response: "§b§l[ArkOps-Ai] §7{0}"
   tool_log: "AI Tool Call: {0}"
   qa_log: "AI Q&A: {0}"
   agent_log: "AI Agent Complete: {0}"
