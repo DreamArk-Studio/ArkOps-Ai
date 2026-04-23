@@ -105,7 +105,7 @@ AI 能够理解自然语言，因此你可以使用灵活的命令：
 ### 构建步骤
 
 ```bash
-git clone https://github.com/DreamArk-Studio/ArkOps-Ai.git
+git clone https://github.com/DreamArk-Studio/ArkOps-Ai-CN.git
 cd ArkOps-Ai
 mvn clean package -DskipTests
 ```
