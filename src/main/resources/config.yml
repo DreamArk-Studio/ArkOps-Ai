@@ -3,13 +3,18 @@
 # 语言设置 (en, zh)
 language: "zh"
 
-# 阿里云百炼 API 配置
-dashscope:
-  # 阿里云百炼 API Key
+# OpenAI 兼容 API 配置
+# 支持所有兼容 OpenAI 接口的服务:
+#   - OpenAI: api-url: "https://api.openai.com/v1/chat/completions"
+#   - DeepSeek: api-url: "https://api.deepseek.com/chat/completions"
+#   - 阿里云百炼: api-url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+#   - 其他兼容 OpenAI 接口的服务
+openai:
+  # API Key
   api-key: "YOUR_API_KEY_HERE"
-  # 使用的模型
+  # 使用的模型名称
   model: "qwen3.5-plus"
-  # API 地址 (北京地域)
+  # API 请求地址
   api-url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
   # API 超时时间 (秒)
   timeout: 60

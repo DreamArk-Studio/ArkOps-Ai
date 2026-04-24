@@ -20,9 +20,9 @@ public class OpenAiManager {
 
     public OpenAiManager(ArkOpsAi plugin) {
         this.plugin = plugin;
-        this.apiKey = plugin.getConfig().getString("dashscope.api-key", "");
-        this.model = plugin.getConfig().getString("dashscope.model", "qwen3.5-plus");
-        this.apiUrl = plugin.getConfig().getString("dashscope.api-url", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
+        this.apiKey = plugin.getConfig().getString("openai.api-key", "");
+        this.model = plugin.getConfig().getString("openai.model", "qwen3.5-plus");
+        this.apiUrl = plugin.getConfig().getString("openai.api-url", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(60, TimeUnit.SECONDS)
                 .readTimeout(120, TimeUnit.SECONDS)
