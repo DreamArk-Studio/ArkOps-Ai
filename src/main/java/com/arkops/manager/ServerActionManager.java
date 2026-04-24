@@ -5,8 +5,10 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.io.File;
@@ -122,10 +124,26 @@ public class ServerActionManager {
 
     public String executeCommand(CommandSender sender, String command) {
         try {
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            if (Bukkit.isPrimaryThread()) {
                 Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
-            });
-            return "命令已执行: " + command;
+                return "命令执行成功: " + command;
+            } else {
+                java.util.concurrent.CompletableFuture<Boolean> future = new java.util.concurrent.CompletableFuture<>();
+                
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    try {
+                        Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
+                        future.complete(true);
+                    } catch (Exception e) {
+                        future.completeExceptionally(e);
+                    }
+                });
+                
+                future.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                return "命令执行成功: " + command;
+            }
+        } catch (java.util.concurrent.TimeoutException e) {
+            return "命令执行超时: " + command;
         } catch (Exception e) {
             return "执行命令失败: " + e.getMessage();
         }
@@ -371,5 +389,86 @@ public class ServerActionManager {
         return Bukkit.getOnlinePlayers().stream()
                 .map(Player::getName)
                 .collect(Collectors.toList());
+    }
+
+    public String getPlayerHeldItem(String playerName) {
+        Player player = Bukkit.getPlayerExact(playerName);
+        if (player == null) {
+            return "未找到玩家: " + playerName;
+        }
+
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir()) {
+            return playerName + " 手中没有物品";
+        }
+
+        return playerName + " 手中持有: " + item.getType().name() + " x" + item.getAmount();
+    }
+
+    public String getPlayerBiome(String playerName) {
+        Player player = Bukkit.getPlayerExact(playerName);
+        if (player == null) {
+            return "未找到玩家: " + playerName;
+        }
+
+        World world = player.getWorld();
+        org.bukkit.block.Biome biome = world.getBiome(player.getLocation());
+        
+        return playerName + " 当前所在群系: " + biome.name();
+    }
+
+    public String getPlayerLookingAtBlock(String playerName) {
+        Player player = Bukkit.getPlayerExact(playerName);
+        if (player == null) {
+            return "未找到玩家: " + playerName;
+        }
+
+        Block targetBlock = player.getTargetBlockExact(5);
+        if (targetBlock == null) {
+            return playerName + " 面前没有方块（5格范围内）";
+        }
+
+        org.bukkit.Location loc = targetBlock.getLocation();
+        return playerName + " 面前的方块: " + targetBlock.getType().name() + 
+               " 坐标: (" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() + ")";
+    }
+
+    public String getPlayerDetailedInfo(String playerName) {
+        Player player = Bukkit.getPlayerExact(playerName);
+        if (player == null) {
+            return "未找到玩家: " + playerName;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("§e玩家详细信息: ").append(playerName).append("\n");
+        sb.append("§7游戏模式: ").append(player.getGameMode()).append("\n");
+        sb.append("§7生命值: ").append(player.getHealth()).append("/").append(player.getMaxHealth()).append("\n");
+        sb.append("§7饥饿值: ").append(player.getFoodLevel()).append("\n");
+        sb.append("§7等级: ").append(player.getLevel()).append("\n");
+        sb.append("§7坐标: ").append(player.getLocation().getBlockX()).append(", ")
+                .append(player.getLocation().getBlockY()).append(", ")
+                .append(player.getLocation().getBlockZ()).append("\n");
+        sb.append("§7世界: ").append(player.getWorld().getName()).append("\n");
+        
+        sb.append("§7群系: ").append(player.getWorld().getBiome(player.getLocation()).name()).append("\n");
+        
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir()) {
+            sb.append("§7手持物品: 无\n");
+        } else {
+            sb.append("§7手持物品: ").append(item.getType().name()).append(" x").append(item.getAmount()).append("\n");
+        }
+        
+        Block targetBlock = player.getTargetBlockExact(5);
+        if (targetBlock == null) {
+            sb.append("§7面前方块: 5格范围内无方块\n");
+        } else {
+            org.bukkit.Location loc = targetBlock.getLocation();
+            sb.append("§7面前方块: ").append(targetBlock.getType().name())
+              .append(" 坐标: (").append(loc.getBlockX()).append(", ")
+              .append(loc.getBlockY()).append(", ").append(loc.getBlockZ()).append(")\n");
+        }
+
+        return sb.toString();
     }
 }

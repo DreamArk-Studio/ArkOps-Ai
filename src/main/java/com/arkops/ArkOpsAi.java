@@ -1,12 +1,17 @@
 package com.arkops;
 
 import com.arkops.commands.OpsCommandExecutor;
+import com.arkops.commands.OpsCommandHandler;
+import com.arkops.listener.ChatListener;
 import com.arkops.manager.LanguageManager;
 import com.arkops.manager.OpenAiManager;
 import com.arkops.manager.PermissionManager;
 import com.arkops.manager.ServerActionManager;
+import com.arkops.skill.SkillManager;
 import com.arkops.util.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.File;
 
 public final class ArkOpsAi extends JavaPlugin {
 
@@ -16,6 +21,8 @@ public final class ArkOpsAi extends JavaPlugin {
     private ServerActionManager serverActionManager;
     private LanguageManager languageManager;
     private Logger logger;
+    private OpsCommandHandler opsCommandHandler;
+    private SkillManager skillManager;
 
     @Override
     public void onEnable() {
@@ -32,11 +39,30 @@ public final class ArkOpsAi extends JavaPlugin {
         this.permissionManager = new PermissionManager(this);
         this.openAiManager = new OpenAiManager(this);
         this.serverActionManager = new ServerActionManager(this);
+        this.skillManager = new SkillManager(this);
 
+        // 自动创建 Skill 文件夹
+        File skillsDir = new File(getDataFolder(), "skills");
+        if (!skillsDir.exists()) {
+            if (skillsDir.mkdirs()) {
+                this.logger.info("已自动创建 Skill 文件夹: " + skillsDir.getAbsolutePath());
+            }
+        } else {
+            this.logger.info("Skill 文件夹已存在: " + skillsDir.getAbsolutePath());
+        }
+
+        // 从 skills 文件夹加载外部 Skill
+        this.skillManager.loadSkillsFromFolder(skillsDir.getAbsolutePath());
+
+        this.opsCommandHandler = new OpsCommandHandler(this);
         getCommand("ops").setExecutor(new OpsCommandExecutor(this));
+
+        getServer().getPluginManager().registerEvents(new ChatListener(this, this.opsCommandHandler), this);
 
         this.logger.info("ArkOps-Ai 已成功启用!");
         this.logger.info("使用 /ops 命令开始 ArkOpsAI 运维管理");
+        this.logger.info("使用 @ops 在聊天中直接与 AI 对话");
+        this.logger.info("已加载 " + this.skillManager.getSkillCount() + " 个 Skill, " + this.skillManager.getToolCount() + " 个工具");
     }
 
     @Override
@@ -46,6 +72,9 @@ public final class ArkOpsAi extends JavaPlugin {
         }
         if (this.openAiManager != null) {
             this.openAiManager.shutdown();
+        }
+        if (this.skillManager != null) {
+            this.skillManager.shutdown();
         }
         getLogger().info("ArkOps-Ai 已关闭");
     }
@@ -72,5 +101,9 @@ public final class ArkOpsAi extends JavaPlugin {
 
     public Logger getArkOpsLogger() {
         return logger;
+    }
+
+    public SkillManager getSkillManager() {
+        return skillManager;
     }
 }
