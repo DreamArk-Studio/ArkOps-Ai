@@ -65,6 +65,18 @@ public interface Skill {
     List<JsonObject> getTools();
 
     /**
+     * 获取工具所需的最低权限级别
+     * 用于控制哪些工具对哪些权限级别的用户可见
+     * 
+     * @param toolName 工具名称
+     * @return 权限级别字符串: "PLAYER", "ADMIN", "SUPER_ADMIN", "CONSOLE"
+     *         默认返回 "ADMIN" 如果未实现此方法
+     */
+    default String getToolPermissionLevel(String toolName) {
+        return "ADMIN";
+    }
+
+    /**
      * 执行工具调用
      * 当 AI 决定调用某个工具时，此方法会被执行
      * 

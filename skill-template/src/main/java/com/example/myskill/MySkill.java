@@ -70,7 +70,36 @@ public class MySkill implements Skill, Listener {
         greetTool.addProperty("type", "function");
 
         tools.add(greetTool);
+
+        JsonObject adminTool = new JsonObject();
+        JsonObject adminFunction = new JsonObject();
+        adminFunction.addProperty("name", "admin_operation");
+        adminFunction.addProperty("description", "Perform an administrative operation (requires ADMIN permission).");
+
+        JsonObject adminProps = new JsonObject();
+        JsonObject actionProp = new JsonObject();
+        actionProp.addProperty("type", "string");
+        actionProp.addProperty("description", "The admin action to perform");
+        adminProps.add("action", actionProp);
+
+        adminFunction.add("parameters", adminProps);
+        adminTool.add("function", adminFunction);
+        adminTool.addProperty("type", "function");
+
+        tools.add(adminTool);
         return tools;
+    }
+
+    @Override
+    public String getToolPermissionLevel(String toolName) {
+        switch (toolName) {
+            case "greet_player":
+                return "PLAYER";
+            case "admin_operation":
+                return "ADMIN";
+            default:
+                return "ADMIN";
+        }
     }
 
     @Override
@@ -79,6 +108,9 @@ public class MySkill implements Skill, Listener {
             case "greet_player":
                 String playerName = args.get("player_name").getAsString();
                 return greetPlayer(playerName);
+            case "admin_operation":
+                String action = args.get("action").getAsString();
+                return performAdminAction(sender, action);
             default:
                 return "Unknown tool: " + toolName;
         }
@@ -87,9 +119,11 @@ public class MySkill implements Skill, Listener {
     @Override
     public String getSystemPrompt() {
         return "=== My Skill Template ===\n" +
-               "You have a simple greeting tool:\n" +
-               "- greet_player: Send a greeting message to a player\n\n" +
-               "Use this tool when players ask for a demonstration or want to be greeted.\n";
+               "You have the following tools:\n" +
+               "- greet_player: Send a greeting message to a player (available to all players)\n" +
+               "- admin_operation: Perform an administrative operation (requires ADMIN permission)\n\n" +
+               "Use greet_player when players ask for a demonstration or want to be greeted.\n" +
+               "Use admin_operation only when an admin requests administrative actions.\n";
     }
 
     @Override
@@ -116,6 +150,10 @@ public class MySkill implements Skill, Listener {
 
     private String greetPlayer(String playerName) {
         return "Hello, " + playerName + "! Welcome to the server!";
+    }
+
+    private String performAdminAction(CommandSender sender, String action) {
+        return "Admin action performed: " + action + " by " + sender.getName();
     }
 
     @EventHandler

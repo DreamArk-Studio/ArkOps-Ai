@@ -13,6 +13,12 @@ commands:
     aliases: [arkops, aiops]
     permission: arkops.use
 
+  opsgui:
+    description: Open ArkOps-Ai GUI for asking questions
+    usage: /<command>
+    aliases: [arkopsgui, aiopsgui]
+    permission: arkops.use
+
 permissions:
   arkops.use:
     description: Allows using the /ops command

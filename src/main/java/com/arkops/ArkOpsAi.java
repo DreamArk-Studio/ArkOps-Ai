@@ -2,6 +2,7 @@ package com.arkops;
 
 import com.arkops.commands.OpsCommandExecutor;
 import com.arkops.commands.OpsCommandHandler;
+import com.arkops.commands.OpsGuiCommand;
 import com.arkops.listener.ChatListener;
 import com.arkops.manager.LanguageManager;
 import com.arkops.manager.OpenAiManager;
@@ -57,6 +58,17 @@ public final class ArkOpsAi extends JavaPlugin {
         this.opsCommandHandler = new OpsCommandHandler(this);
         getCommand("ops").setExecutor(new OpsCommandExecutor(this));
 
+        OpsGuiCommand opsGuiCommand = new OpsGuiCommand(this);
+        getCommand("opsgui").setExecutor((sender, command, label, args) -> {
+            if (!(sender instanceof org.bukkit.entity.Player)) {
+                sender.sendMessage("§c该命令只能由玩家使用");
+                return true;
+            }
+            opsGuiCommand.openGui((org.bukkit.entity.Player) sender);
+            return true;
+        });
+        getServer().getPluginManager().registerEvents(opsGuiCommand, this);
+
         getServer().getPluginManager().registerEvents(new ChatListener(this, this.opsCommandHandler), this);
 
         this.logger.info("ArkOps-Ai 已成功启用!");
@@ -105,5 +117,20 @@ public final class ArkOpsAi extends JavaPlugin {
 
     public SkillManager getSkillManager() {
         return skillManager;
+    }
+
+    public OpsCommandHandler getOpsCommandHandler() {
+        return opsCommandHandler;
+    }
+
+    public void reloadPluginConfig() {
+        reloadConfig();
+        if (languageManager != null) {
+            languageManager.reload();
+        }
+        if (permissionManager != null) {
+            permissionManager.reloadPermissions();
+        }
+        logger.info("ArkOps-Ai 配置文件已热重载");
     }
 }

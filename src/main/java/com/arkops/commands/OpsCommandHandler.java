@@ -4,6 +4,7 @@ import com.arkops.ArkOpsAi;
 import com.arkops.manager.LanguageManager;
 import com.arkops.manager.PermissionManager;
 import com.arkops.manager.ServerActionManager;
+import com.arkops.session.AISessionContext;
 import com.arkops.skill.SkillManager;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -73,7 +74,11 @@ public class OpsCommandHandler {
         userMsg.addProperty("content", sanitizedCommand);
         messages.add(userMsg);
 
-        executeAgentLoop(sender, playerName, playerId, command, messages, tools, 0, false);
+        AISessionContext sessionContext = (sender instanceof Player)
+                ? AISessionContext.player(playerName, level.name())
+                : AISessionContext.console();
+
+        executeAgentLoop(sender, playerName, playerId, command, messages, tools, 0, false, sessionContext);
     }
 
     public void handleBroadcastCommand(Player player, String command) {
@@ -110,14 +115,136 @@ public class OpsCommandHandler {
         userMsg.addProperty("content", sanitizedCommand);
         messages.add(userMsg);
 
-        executeAgentLoop(player, playerName, playerId, command, messages, new JsonArray(), 0, true);
+        AISessionContext sessionContext = AISessionContext.player(playerName, level.name());
+
+        executeAgentLoop(player, playerName, playerId, command, messages, new JsonArray(), 0, true, sessionContext);
     }
 
-    private void executeAgentLoop(CommandSender sender, String playerName, UUID playerId, String originalCommand, JsonArray messages, JsonArray tools, int iteration, boolean broadcast) {
+    public void handleQQMessage(String qqUserId, String command, String permissionLevel) {
+        String playerName = "QQ:" + qqUserId;
+        PermissionManager.PermissionLevel level = PermissionManager.PermissionLevel.fromString(permissionLevel);
+
+        plugin.getLogger().info("[QQ] 收到来自 " + qqUserId + " 的请求: " + command);
+
+        String sanitizedCommand = sanitizeInput(command);
+
+        String systemPrompt = buildSystemPrompt(playerName, level, plugin.getServer().getConsoleSender());
+        JsonArray tools = buildTools(level);
+
+        JsonArray messages = new JsonArray();
+
+        JsonObject systemMsg = new JsonObject();
+        systemMsg.addProperty("role", "system");
+        systemMsg.addProperty("content", systemPrompt);
+        messages.add(systemMsg);
+
+        JsonObject userMsg = new JsonObject();
+        userMsg.addProperty("role", "user");
+        userMsg.addProperty("content", sanitizedCommand);
+        messages.add(userMsg);
+
+        AISessionContext sessionContext = AISessionContext.qqUser(qqUserId, playerName, permissionLevel);
+
+        executeAgentLoop(plugin.getServer().getConsoleSender(), playerName, null, command, messages, tools, 0, false, sessionContext);
+    }
+
+    public String handleQQMessageWithResponse(String qqUserId, String message, String permissionLevel) {
+        String playerName = "QQ:" + qqUserId;
+        PermissionManager.PermissionLevel level = PermissionManager.PermissionLevel.fromString(permissionLevel);
+
+        String sanitizedMessage = sanitizeInput(message);
+
+        String systemPrompt = buildSystemPrompt(playerName, level, plugin.getServer().getConsoleSender());
+        JsonArray tools = buildTools(level);
+
+        JsonArray messages = new JsonArray();
+
+        JsonObject systemMsg = new JsonObject();
+        systemMsg.addProperty("role", "system");
+        systemMsg.addProperty("content", systemPrompt);
+        messages.add(systemMsg);
+
+        JsonObject userMsg = new JsonObject();
+        userMsg.addProperty("role", "user");
+        userMsg.addProperty("content", sanitizedMessage);
+        messages.add(userMsg);
+
+        AISessionContext sessionContext = AISessionContext.qqUser(qqUserId, playerName, permissionLevel);
+
+        return executeAgentLoopWithResponse(playerName, null, message, messages, tools, 0, sessionContext);
+    }
+
+    private String executeAgentLoopWithResponse(String playerName, UUID playerId, String originalCommand, JsonArray messages, JsonArray tools, int iteration, AISessionContext context) {
+        if (iteration >= 10) {
+            return "达到最大迭代次数";
+        }
+
+        try {
+            JsonObject response = plugin.getOpenAiManager().sendRequestWithMessagesSync(messages, tools);
+
+            if (response.has("error")) {
+                return "AI 请求失败: " + response.get("error").getAsString();
+            }
+
+            JsonArray choices = response.getAsJsonArray("choices");
+            if (choices == null || choices.size() == 0) {
+                return "AI 返回无效响应";
+            }
+
+            JsonObject message = choices.get(0).getAsJsonObject().getAsJsonObject("message");
+
+            if (message.has("tool_calls") && !message.get("tool_calls").isJsonNull()) {
+                JsonArray toolCalls = message.getAsJsonArray("tool_calls");
+
+                JsonObject assistantMsg = new JsonObject();
+                assistantMsg.addProperty("role", "assistant");
+                assistantMsg.add("tool_calls", message.get("tool_calls"));
+                messages.add(assistantMsg);
+
+                for (int i = 0; i < toolCalls.size(); i++) {
+                    JsonObject toolCall = toolCalls.get(i).getAsJsonObject();
+                    String toolCallId = toolCall.get("id").getAsString();
+                    String toolName = toolCall.getAsJsonObject("function").get("name").getAsString();
+                    String arguments = toolCall.getAsJsonObject("function").get("arguments").getAsString();
+
+                    JsonObject args = com.google.gson.JsonParser.parseString(arguments).getAsJsonObject();
+                    String result = executeToolCall(plugin.getServer().getConsoleSender(), playerName, playerId, toolName, args, context);
+
+                    plugin.getArkOpsLogger().logAction(playerName, "工具调用: " + toolName, result);
+
+                    JsonObject toolResult = new JsonObject();
+                    toolResult.addProperty("role", "tool");
+                    toolResult.addProperty("tool_call_id", toolCallId);
+                    toolResult.addProperty("content", result);
+                    messages.add(toolResult);
+                }
+
+                return executeAgentLoopWithResponse(playerName, playerId, originalCommand, messages, tools, iteration + 1, context);
+            } else if (message.has("content") && !message.get("content").isJsonNull()) {
+                String content = message.get("content").getAsString();
+
+                plugin.getArkOpsLogger().logAction(playerName, "问答: " + originalCommand, "成功");
+
+                if (isContextEnabled() && playerId != null) {
+                    saveContext(playerId, messages, message);
+                }
+
+                return content;
+            }
+
+            return "AI 未返回有效内容";
+        } catch (Exception e) {
+            return "AI 请求异常: " + e.getMessage();
+        }
+    }
+
+    private void executeAgentLoop(CommandSender sender, String playerName, UUID playerId, String originalCommand, JsonArray messages, JsonArray tools, int iteration, boolean broadcast, AISessionContext context) {
         if (iteration >= 10) {
             sender.sendMessage(lang.getMessage("command.max_iterations"));
             return;
         }
+
+        String permissionLevel = context != null ? context.getPermissionLevel() : "PLAYER";
 
         plugin.getOpenAiManager().sendRequestWithMessages(messages, tools).thenAccept(response -> {
             plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -167,7 +294,7 @@ public class OpsCommandHandler {
                         String arguments = toolCall.getAsJsonObject("function").get("arguments").getAsString();
 
                         JsonObject args = com.google.gson.JsonParser.parseString(arguments).getAsJsonObject();
-                        String result = executeToolCall(sender, playerName, playerId, toolName, args);
+                        String result = executeToolCall(sender, playerName, playerId, toolName, args, context);
 
                         if (!toolName.equals("check_permission")) {
                             if (broadcast) {
@@ -187,7 +314,7 @@ public class OpsCommandHandler {
                         messages.add(toolResult);
                     }
 
-                    executeAgentLoop(sender, playerName, playerId, originalCommand, messages, tools, iteration + 1, broadcast);
+                    executeAgentLoop(sender, playerName, playerId, originalCommand, messages, tools, iteration + 1, broadcast, context);
                 } else if (message.has("content") && !message.get("content").isJsonNull()) {
                     String content = message.get("content").getAsString();
 
@@ -226,78 +353,123 @@ public class OpsCommandHandler {
         });
     }
 
-    private String executeToolCall(CommandSender sender, String playerName, UUID playerId, String toolName, JsonObject args) {
+    private String executeToolCall(CommandSender sender, String playerName, UUID playerId, String toolName, JsonObject args, AISessionContext context) {
         try {
+            String permissionLevel = context != null ? context.getPermissionLevel() : "PLAYER";
+            PermissionManager.PermissionLevel callerLevel = PermissionManager.PermissionLevel.fromString(permissionLevel);
+
             switch (toolName) {
                 case "check_permission":
                     return checkPermission(playerId, playerName, args);
                 case "restart_server":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
                     return actionManager.restartServer(sender);
                 case "stop_server":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
                     return actionManager.stopServer(sender);
                 case "reload_server":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
                     actionManager.reloadServer(sender);
                     return lang.getMessage("server.reload");
+                case "ban_player":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
+                    return actionManager.banPlayer(sender,
+                            args.get("player").getAsString(),
+                            args.has("reason") ? args.get("reason").getAsString() : null);
+                case "set_permission":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
+                    return setPermission(args.get("player").getAsString(), args.get("level").getAsString());
                 case "hot_reload_plugin":
-                    return actionManager.hotReloadPlugin(sender, args.get("plugin_name").getAsString());
                 case "hot_unload_plugin":
-                    return actionManager.hotUnloadPlugin(sender, args.get("plugin_name").getAsString());
                 case "hot_load_plugin":
-                    return actionManager.hotLoadPlugin(sender, args.get("plugin_name").getAsString());
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
+                    if (toolName.equals("hot_reload_plugin")) {
+                        return actionManager.hotReloadPlugin(sender, args.get("plugin_name").getAsString());
+                    } else if (toolName.equals("hot_unload_plugin")) {
+                        return actionManager.hotUnloadPlugin(sender, args.get("plugin_name").getAsString());
+                    } else {
+                        return actionManager.hotLoadPlugin(sender, args.get("plugin_name").getAsString());
+                    }
                 case "list_plugins":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.listPlugins();
                 case "execute_command":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.executeCommand(sender, args.get("command").getAsString());
                 case "set_game_time":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.setTime(sender, args.get("time").getAsString());
                 case "set_weather":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.setWeather(sender, args.get("weather").getAsString());
                 case "set_game_mode":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.setGameMode(sender,
                             args.get("player").getAsString(),
                             args.get("game_mode").getAsString());
                 case "get_server_info":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.getServerInfo();
                 case "get_player_info":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.getPlayerInfo(args.get("player").getAsString());
                 case "teleport_player":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.teleportPlayer(sender,
                             args.get("target").getAsString(),
                             args.get("destination").getAsString());
                 case "give_item":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.giveItem(sender,
                             args.get("player").getAsString(),
                             args.get("item").getAsString(),
                             args.has("amount") ? args.get("amount").getAsInt() : 1);
                 case "kick_player":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.kickPlayer(sender,
                             args.get("player").getAsString(),
                             args.has("reason") ? args.get("reason").getAsString() : null);
-                case "ban_player":
-                    return actionManager.banPlayer(sender,
-                            args.get("player").getAsString(),
-                            args.has("reason") ? args.get("reason").getAsString() : null);
-                case "set_permission":
-                    return setPermission(args.get("player").getAsString(), args.get("level").getAsString());
                 case "get_online_players":
                     return String.join(", ", actionManager.getOnlinePlayers());
                 case "get_player_held_item":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.getPlayerHeldItem(args.get("player").getAsString());
                 case "get_player_biome":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.getPlayerBiome(args.get("player").getAsString());
                 case "get_player_looking_at":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.getPlayerLookingAtBlock(args.get("player").getAsString());
                 case "get_player_detailed_info":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
                     return actionManager.getPlayerDetailedInfo(args.get("player").getAsString());
+                case "reload_config":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
+                    plugin.reloadPluginConfig();
+                    return "ArkOps-Ai 配置文件已热重载（config.yml, lang.yml, permissions.yml）";
+                case "reload_skill":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
+                    String skillId = args.get("skill_id").getAsString();
+                    return skillManager.reloadSkill(skillId);
+                case "reload_all_skills":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
+                    return skillManager.reloadAllSkills();
                 default:
-                    // 检查是否是 Skill 提供的工具
+                    // 检查是否是 Skill 提供的工具（带权限检查）
                     if (skillManager != null && skillManager.hasTool(toolName)) {
-                        return skillManager.executeTool(sender, toolName, args);
+                        return skillManager.executeTool(sender, toolName, args, context);
                     }
                     return lang.getMessage("error.general", "Unknown tool: " + toolName);
             }
         } catch (Exception e) {
             return lang.getMessage("error.general", e.getMessage());
+        }
+    }
+
+    private void requirePermission(PermissionManager.PermissionLevel callerLevel, PermissionManager.PermissionLevel requiredLevel, String toolName) {
+        if (callerLevel.getLevel() < requiredLevel.getLevel()) {
+            throw new SecurityException("权限不足：你的权限等级为 " + callerLevel.getDisplayName()
+                    + "，该操作需要 " + requiredLevel.getDisplayName() + " 权限。");
         }
     }
 
@@ -414,11 +586,6 @@ public class OpsCommandHandler {
 
         prompt.append("Current player: ").append(playerName).append("\n\n");
 
-        prompt.append("Server info:\n");
-        prompt.append("- Version: ").append(plugin.getServer().getVersion()).append("\n");
-        prompt.append("- Online players: ").append(plugin.getServer().getOnlinePlayers().size()).append("\n");
-        prompt.append("- Plugin count: ").append(plugin.getServer().getPluginManager().getPlugins().length).append("\n\n");
-
         prompt.append("What you CAN do:\n");
         prompt.append("- Answer game-related questions\n");
         prompt.append("- Provide game tips and strategies\n");
@@ -458,11 +625,6 @@ public class OpsCommandHandler {
 
         prompt.append("Current requester: ").append(playerName).append("\n");
         prompt.append("Requester permission level: ").append(level.getDisplayName()).append("\n\n");
-
-        prompt.append("Server info:\n");
-        prompt.append("- Version: ").append(plugin.getServer().getVersion()).append("\n");
-        prompt.append("- Online players: ").append(plugin.getServer().getOnlinePlayers().size()).append("\n");
-        prompt.append("- Plugin count: ").append(plugin.getServer().getPluginManager().getPlugins().length).append("\n\n");
 
         prompt.append("Working rules:\n");
         prompt.append("1. You must check if the executor has sufficient permission before any operation\n");
@@ -506,6 +668,9 @@ public class OpsCommandHandler {
         prompt.append("- kick_player: Kick player (ADMIN)\n");
         prompt.append("- ban_player: Ban player (SUPER_ADMIN)\n");
         prompt.append("- set_permission: Set player permission (SUPER_ADMIN)\n");
+        prompt.append("- reload_config: Hot-reload ArkOps-Ai config files (SUPER_ADMIN)\n");
+        prompt.append("- reload_skill: Hot-reload a specific Skill (SUPER_ADMIN)\n");
+        prompt.append("- reload_all_skills: Hot-reload all Skills (SUPER_ADMIN)\n");
         prompt.append("- get_online_players: Get online player list\n\n");
 
         // 添加 Skill 的系统提示
@@ -588,10 +753,15 @@ public class OpsCommandHandler {
 
         tools.add(createTool("get_online_players", "Get current online player list", createPropsBuilder().build()));
         tools.add(createTool("reload_server", "Reload server configuration", createPropsBuilder().build()));
+        tools.add(createTool("reload_config", "Hot-reload ArkOps-Ai configuration files (config.yml, lang.yml, permissions.yml)", createPropsBuilder().build()));
+        tools.add(createTool("reload_skill", "Hot-reload a specific Skill from its jar file",
+                createPropsBuilder().add("skill_id", "string", "Skill ID to reload", true).build()));
+        tools.add(createTool("reload_all_skills", "Hot-reload all Skills loaded from the skills folder", createPropsBuilder().build()));
 
-        // 添加 Skill 提供的工具
+        // 添加 Skill 提供的工具（根据权限级别过滤）
         if (skillManager != null) {
-            JsonArray skillTools = skillManager.getAllTools();
+            String callerLevel = level.name();
+            JsonArray skillTools = skillManager.filterToolsByPermission(callerLevel);
             for (int i = 0; i < skillTools.size(); i++) {
                 tools.add(skillTools.get(i));
             }

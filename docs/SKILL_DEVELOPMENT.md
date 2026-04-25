@@ -6,14 +6,15 @@
 2. [架构设计](#架构设计)
 3. [快速开始](#快速开始)
 4. [⚠️ 重要：Skill ≠ Plugin](#重要skill--plugin)
-5. [Skill 接口详解](#skill-接口详解)
-6. [工具定义详解](#工具定义详解)
-7. [系统提示词编写指南](#系统提示词编写指南)
-8. [完整示例：经济管理系统](#完整示例经济管理系统)
-9. [完整示例：世界编辑工具](#完整示例世界编辑工具)
-10. [最佳实践](#最佳实践)
-11. [常见问题](#常见问题)
-12. [版本兼容性](#版本兼容性)
+5. [会话级权限上下文 (AISessionContext)](#会话级权限上下文-aisessioncontext)
+6. [Skill 接口详解](#skill-接口详解)
+7. [工具定义详解](#工具定义详解)
+8. [系统提示词编写指南](#系统提示词编写指南)
+9. [完整示例：经济管理系统](#完整示例经济管理系统)
+10. [完整示例：世界编辑工具](#完整示例世界编辑工具)
+11. [最佳实践](#最佳实践)
+12. [常见问题](#常见问题)
+13. [版本兼容性](#版本兼容性)
 
 ---
 
@@ -44,38 +45,48 @@ Skill 是 ArkOps-Ai 的扩展系统，允许开发者为 AI 添加新的能力�
 ## 架构设计
 
 ```
-┌─────────────────────────────────────────┐
-│           ArkOps-Ai 核心系统              │
-│  ┌───────────────────────────────────┐  │
-│  │      OpsCommandHandler            │  │
-│  │  - 构建工具列表                    │  │
-│  │  - 执行工具调用                    │  │
-│  │  - 管理系统提示                    │  │
-│  └───────────────┬───────────────────┘  │
-│                  │                       │
-│  ┌───────────────▼───────────────────┐  │
-│  │        SkillManager               │  │
-│  │  - 注册/注销 Skill                │  │
-│  │  - 工具映射管理                    │  │
-│  │  - 执行 Skill 工具                │  │
-│  └───────────────┬───────────────────┘  │
-│                  │                       │
-│  ┌───────────────▼───────────────────┐  │
-│  │          Skill 实例               │  │
-│  │  - EconomySkill                   │  │
-│  │  - WorldEditSkill                 │  │
-│  │  - YourCustomSkill                │  │
-│  └───────────────────────────────────┘  │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│              ArkOps-Ai 核心系统                    │
+│  ┌────────────────────────────────────────┐     │
+│  │        AISessionContext                 │     │
+│  │  - 用户身份 (QQ / 玩家 / 控制台)        │     │
+│  │  - 权限级别                             │     │
+│  │  - 不可变对象，全链路传递                │     │
+│  └────────────────┬───────────────────────┘     │
+│                   │                              │
+│  ┌────────────────▼──────────────────────┐     │
+│  │        OpsCommandHandler              │     │
+│  │  - 构建工具列表 (filterToolsByPermission)│   │
+│  │  - 执行工具调用 (携带 AISessionContext) │     │
+│  │  - 管理系统提示                        │     │
+│  │  - QQ消息入口 (handleQQMessage / handleQQMessageWithResponse)│
+│  └────────────────┬──────────────────────┘     │
+│                   │                              │
+│  ┌────────────────▼──────────────────────┐     │
+│  │          SkillManager                 │     │
+│  │  - 注册/注销 Skill                    │     │
+│  │  - 工具映射管理                        │     │
+│  │  - 权限校验 (hasSufficientPermission)  │     │
+│  │  - 双重权限校验                        │     │
+│  └────────────────┬──────────────────────┘     │
+│                   │                              │
+│  ┌────────────────▼──────────────────────┐     │
+│  │            Skill 实例                  │     │
+│  │  - EconomySkill                       │     │
+│  │  - KnowledgeBaseSkill                 │     │
+│  │  - YourCustomSkill                    │     │
+│  └────────────────────────────────────────┘     │
+└──────────────────────────────────────────────────┘
 ```
 
 ### 核心组件
 
 | 组件 | 说明 |
 |------|------|
+| `AISessionContext` | 会话级权限上下文，携带用户身份和权限级别，全链路传递 |
 | `Skill` 接口 | 定义 Skill 的标准接口 |
-| `SkillManager` | 管理所有 Skill 的生命周期 |
-| `OpsCommandHandler` | 集成 Skill 到 AI 系统 |
+| `SkillManager` | 管理所有 Skill 的生命周期，权限校验 |
+| `OpsCommandHandler` | 集成 Skill 到 AI 系统，QQ消息入口 |
 
 ---
 
@@ -254,6 +265,247 @@ public class MySkill implements Skill, Listener {
 ### 为什么这样设计？
 
 Bukkit 的设计是 **一个 jar = 一个 Plugin**。Skill 是 ArkOps-Ai 内部的模块/组件，不是独立的 Bukkit 插件。所有 Skill 共享 ArkOps-Ai 的 Plugin 实例。
+
+---
+
+## 会话级权限上下文 (AISessionContext)
+
+### 什么是 AISessionContext？
+
+`AISessionContext` 是一个**不可变、线程安全**的会话上下文对象，用于在 AI 调用链路中携带用户身份和权限信息。它解决了以下核心安全问题：
+
+- **身份识别**：区分请求来源是 QQ 用户、游戏内玩家还是控制台
+- **权限隔离**：AI 调用工具时使用真实用户的权限，而非默认的 CONSOLE 权限
+- **防止越权**：每个工具调用都经过双重权限校验
+
+### 调用链路
+
+```
+QQ消息 / 游戏内命令 / 控制台命令
+        │
+        ▼
+┌──────────────────────┐
+│  创建 AISessionContext │
+│  .qqUser(...)         │  ← QQ机器人入口
+│  .player(...)         │  ← 游戏内玩家入口
+│  .console()           │  ← 控制台入口
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│   executeAgentLoop    │
+│   (携带 context)       │  ← 递归调用中保持不变
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│   executeToolCall     │
+│   (携带 context)       │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ SkillManager          │
+│ .executeTool(context) │  ← 双重权限校验
+│  ① hasSufficientPermission │
+│  ② skill.executeTool()     │
+└──────────────────────┘
+```
+
+### 类定义
+
+```java
+package com.arkops.session;
+
+public final class AISessionContext {
+    private final String qqUserId;       // QQ用户ID (null = 非QQ用户)
+    private final String permissionLevel; // 权限级别: PLAYER, ADMIN, SUPER_ADMIN, CONSOLE
+    private final String displayName;     // 显示名称
+
+    // 工厂方法
+    public static AISessionContext console()                        // 控制台
+    public static AISessionContext player(name, level)              // 游戏内玩家
+    public static AISessionContext qqUser(qqId, name, level)       // QQ用户
+
+    // Getter
+    public String getQqUserId()
+    public String getPermissionLevel()
+    public String getDisplayName()
+    public boolean isQQUser()
+}
+```
+
+### 使用场景
+
+#### 场景 1: QQ 机器人入口（异步广播模式）
+
+```java
+// QQ 机器人收到消息时调用，回复广播到游戏内
+public void handleQQMessage(String qqUserId, String command, String permissionLevel) {
+    // 创建 QQ 用户的会话上下文
+    AISessionContext sessionContext = AISessionContext.qqUser(
+        qqUserId,
+        "QQ:" + qqUserId,
+        permissionLevel   // 来自权限系统的真实权限级别
+    );
+
+    // 构建工具列表时使用 QQ 用户的权限过滤
+    JsonArray tools = buildTools(PermissionLevel.fromString(permissionLevel));
+
+    // 全链路传递 context
+    executeAgentLoop(sender, playerName, null, command, messages, tools, 0, false, sessionContext);
+}
+```
+
+#### 场景 1.5: QQ 机器人入口（同步返回模式，推荐）
+
+```java
+// QQ 机器人收到消息时调用，直接返回 AI 回复
+public String handleQQMessageWithResponse(String qqUserId, String message, String permissionLevel) {
+    AISessionContext sessionContext = AISessionContext.qqUser(
+        qqUserId,
+        "QQ:" + qqUserId,
+        permissionLevel
+    );
+
+    JsonArray tools = buildTools(PermissionLevel.fromString(permissionLevel));
+
+    // 构建 messages...
+
+    // 同步执行，直接返回 AI 回复
+    return executeAgentLoopWithResponse(playerName, null, message, messages, tools, 0, sessionContext);
+}
+```
+
+> **推荐使用 `handleQQMessageWithResponse`**：不依赖日志文件读取，直接获取 AI 回复，100% 准确，性能更好。
+
+#### 场景 2: 游戏内玩家
+
+```java
+public void handleCommand(CommandSender sender, String command) {
+    PermissionLevel level = permissionManager.getPermissionLevel(playerId);
+
+    // 创建玩家会话上下文
+    AISessionContext sessionContext = (sender instanceof Player)
+            ? AISessionContext.player(playerName, level.name())
+            : AISessionContext.console();
+
+    executeAgentLoop(sender, playerName, playerId, command, messages, tools, 0, false, sessionContext);
+}
+```
+
+### 双重权限校验
+
+系统在两条路径上同时进行权限控制，确保安全：
+
+| 校验层 | 方法 | 位置 | 作用 |
+|--------|------|------|------|
+| ① 工具列表过滤 | `SkillManager.filterToolsByPermission(level)` | `buildTools()` | AI 只能看到用户有权使用的工具 |
+| ② 执行时校验 | `SkillManager.executeTool(context)` | 工具执行入口 | 即使绕过①，执行时也会再次检查 |
+
+```java
+// SkillManager 内部
+public String executeTool(CommandSender sender, String toolName, JsonObject args, AISessionContext context) {
+    if (context == null) {
+        return "错误: 缺少会话上下文，无法执行工具";
+    }
+
+    // ② 执行时权限校验
+    if (!hasSufficientPermission(toolName, context.getPermissionLevel())) {
+        return "权限不足：你的权限等级为 " + context.getPermissionLevel()
+                + "，该操作需要 " + skill.getToolPermissionLevel(toolName) + " 权限。";
+    }
+
+    return skill.executeTool(sender, toolName, args);
+}
+```
+
+### Skill 开发者视角
+
+Skill 开发者**不需要**直接操作 `AISessionContext`。只需正确实现 `getToolPermissionLevel()` 方法，框架会自动处理权限校验：
+
+```java
+@Override
+public String getToolPermissionLevel(String toolName) {
+    switch (toolName) {
+        case "query_knowledge":
+            return "PLAYER";       // 所有用户可查询
+        case "upload_knowledge":
+            return "ADMIN";        // 仅管理员可上传
+        case "delete_knowledge":
+            return "SUPER_ADMIN";  // 仅超级管理员可删除
+        default:
+            return "ADMIN";
+    }
+}
+```
+
+### 安全原则
+
+1. **禁止信任 AI 传入的权限参数** — 权限始终来自服务器系统（QQ用户级别/游戏内权限）
+2. **禁止绕过 executeTool 校验** — context 为空时立即拒绝
+3. **禁止通过字符串拼接执行命令** — 所有操作经过权限校验
+4. **不使用 ThreadLocal** — `AISessionContext` 作为方法参数显式传递
+
+### 原生工具权限校验
+
+`OpsCommandHandler.executeToolCall()` 中每个原生工具调用前都通过 `requirePermission()` 进行校验，形成**第三层权限控制**：
+
+```java
+private void requirePermission(PermissionManager.PermissionLevel callerLevel, PermissionManager.PermissionLevel requiredLevel, String toolName) {
+    if (callerLevel.getLevel() < requiredLevel.getLevel()) {
+        throw new SecurityException("权限不足：你的权限等级为 " + callerLevel.getDisplayName()
+                + "，该操作需要 " + requiredLevel.getDisplayName() + " 权限。");
+    }
+}
+```
+
+`executeToolCall` 方法入口处先将上下文中的权限字符串解析为枚举，每个工具调用前自动拦截：
+
+```java
+String permissionLevel = context != null ? context.getPermissionLevel() : "PLAYER";
+PermissionManager.PermissionLevel callerLevel = PermissionManager.PermissionLevel.fromString(permissionLevel);
+
+switch (toolName) {
+    case "restart_server":
+        requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
+        return actionManager.restartServer(sender);
+    case "hot_reload_plugin":
+    case "hot_unload_plugin":
+    case "hot_load_plugin":
+        requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
+        // ...
+}
+```
+
+**权限映射表**：
+
+| 工具 | 需要权限 |
+|------|----------|
+| `restart_server` | SUPER_ADMIN |
+| `stop_server` | SUPER_ADMIN |
+| `reload_server` | SUPER_ADMIN |
+| `ban_player` | SUPER_ADMIN |
+| `set_permission` | SUPER_ADMIN |
+| `hot_reload_plugin` | ADMIN |
+| `hot_unload_plugin` | ADMIN |
+| `hot_load_plugin` | ADMIN |
+| `list_plugins` | ADMIN |
+| `execute_command` | ADMIN |
+| `set_game_time` | ADMIN |
+| `set_weather` | ADMIN |
+| `set_game_mode` | ADMIN |
+| `get_server_info` | ADMIN |
+| `get_player_info` | ADMIN |
+| `teleport_player` | ADMIN |
+| `give_item` | ADMIN |
+| `kick_player` | ADMIN |
+| `get_player_held_item` | ADMIN |
+| `get_player_biome` | ADMIN |
+| `get_player_looking_at` | ADMIN |
+| `get_player_detailed_info` | ADMIN |
+| `get_online_players` | 无限制 |
+| `check_permission` | 无限制 |
 
 ---
 
@@ -1356,7 +1608,82 @@ private String transferMoney(String from, String to, double amount) {
 
 ### 3. 权限检查
 
-在执行操作前检查权限：
+ArkOps-Ai 提供了两层权限控制机制：
+
+#### 3.1 工具级别权限声明
+
+通过实现 `getToolPermissionLevel()` 方法，为每个工具声明所需的最低权限级别：
+
+```java
+@Override
+public String getToolPermissionLevel(String toolName) {
+    switch (toolName) {
+        case "get_balance":
+            return "PLAYER";        // 所有玩家都可以使用
+        case "transfer_money":
+            return "PLAYER";        // 所有玩家都可以使用
+        case "set_balance":
+            return "ADMIN";         // 需要管理员权限
+        case "delete_account":
+            return "SUPER_ADMIN";   // 需要超级管理员权限
+        default:
+            return "ADMIN";         // 默认为管理员权限
+    }
+}
+```
+
+**权限级别说明：**
+- `PLAYER` (1): 所有玩家都可以使用
+- `ADMIN` (2): 需要管理员权限
+- `SUPER_ADMIN` (3): 需要超级管理员权限
+- `CONSOLE` (4): 仅控制台可用
+
+#### 3.2 权限过滤机制（工具列表过滤）
+
+系统通过 `SkillManager.filterToolsByPermission()` 自动根据用户的权限级别过滤可用工具：
+
+```
+用户请求 → buildTools(level) → filterToolsByPermission(level) → AI 只能看到有权限的工具
+```
+
+**过滤逻辑**：
+1. 获取调用者的权限级别数值（PLAYER=1, ADMIN=2, SUPER_ADMIN=3, CONSOLE=4）
+2. 遍历所有已注册的 Skill 工具
+3. 只返回 `调用者级别 >= 工具所需级别` 的工具
+
+这意味着：
+- PLAYER 用户看不到 ADMIN 级别的工具
+- QQ 用户使用自己的权限级别，而非 CONSOLE
+
+#### 3.3 执行时权限校验（AISessionContext 双重校验）
+
+即使 AI 在工具列表中被限制了可见工具，系统在**真正执行工具时**还会进行第二次校验。
+
+调用链路中 `AISessionContext` 全程携带用户身份：
+
+```java
+// SkillManager.executeTool(context) 内部
+public String executeTool(CommandSender sender, String toolName, JsonObject args, AISessionContext context) {
+    // context 为空 → 直接拒绝
+    if (context == null) {
+        return "错误: 缺少会话上下文，无法执行工具";
+    }
+
+    // 执行时再校验一次权限
+    if (!hasSufficientPermission(toolName, context.getPermissionLevel())) {
+        return "权限不足：你的权限等级为 " + context.getPermissionLevel()
+                + "，该操作需要 " + skill.getToolPermissionLevel(toolName) + " 权限。";
+    }
+
+    return skill.executeTool(sender, toolName, args);
+}
+```
+
+**Skill 开发者无需关心 AISessionContext**，只需要正确声明 `getToolPermissionLevel()` 即可。框架自动完成双重校验。
+
+#### 3.4 传统权限检查
+
+在执行操作前，仍然可以检查 Bukkit 权限：
 
 ```java
 @Override
@@ -1368,7 +1695,7 @@ public String executeTool(CommandSender sender, String toolName, JsonObject args
     
     Player player = (Player) sender;
     
-    // 检查权限
+    // 检查 Bukkit 权限
     if (!player.hasPermission("myskill.use")) {
         return "You don't have permission to use this skill";
     }

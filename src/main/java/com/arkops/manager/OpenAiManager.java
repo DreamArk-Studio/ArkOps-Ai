@@ -147,6 +147,52 @@ public class OpenAiManager {
         });
     }
 
+    public JsonObject sendRequestWithMessagesSync(JsonArray messages, JsonArray tools) {
+        try {
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("model", model);
+            requestBody.add("messages", messages);
+            requestBody.add("tools", tools);
+            requestBody.addProperty("max_tokens", 2000);
+            requestBody.addProperty("temperature", 0.3);
+
+            RequestBody body = RequestBody.create(
+                    requestBody.toString(),
+                    MediaType.parse("application/json")
+            );
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .post(body)
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "Unknown error";
+                    plugin.getLogger().severe("ArkOpsAI API 错误: " + response.code() + " - " + errorBody);
+                    JsonObject error = new JsonObject();
+                    error.addProperty("error", "API 错误: " + response.code());
+                    return error;
+                }
+
+                String responseBody = response.body().string();
+                return JsonParser.parseString(responseBody).getAsJsonObject();
+            }
+        } catch (IOException e) {
+            plugin.getLogger().severe("ArkOpsAI API 请求失败: " + e.getMessage());
+            JsonObject error = new JsonObject();
+            error.addProperty("error", "连接失败: " + e.getMessage());
+            return error;
+        } catch (Exception e) {
+            plugin.getLogger().severe("处理 ArkOpsAI 响应时出错: " + e.getMessage());
+            JsonObject error = new JsonObject();
+            error.addProperty("error", "处理错误: " + e.getMessage());
+            return error;
+        }
+    }
+
     public CompletableFuture<JsonObject> sendRequestWithMessages(JsonArray messages, JsonArray tools) {
         return CompletableFuture.supplyAsync(() -> {
             try {

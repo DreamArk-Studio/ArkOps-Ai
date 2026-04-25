@@ -1,6 +1,7 @@
 package com.arkops.skill;
 
 import com.arkops.ArkOpsAi;
+import com.arkops.session.AISessionContext;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.command.CommandSender;
@@ -19,6 +20,7 @@ public class SkillManager {
     private final ArkOpsAi plugin;
     private final Map<String, Skill> registeredSkills = new ConcurrentHashMap<>();
     private final Map<String, String> toolToSkillMap = new ConcurrentHashMap<>();
+    private final Map<String, String> skillToFileMap = new ConcurrentHashMap<>();
 
     public SkillManager(ArkOpsAi plugin) {
         this.plugin = plugin;
@@ -87,6 +89,9 @@ public class SkillManager {
                 toolToSkillMap.remove(toolName);
             }
 
+            // 移除文件映射
+            skillToFileMap.remove(skillId);
+
             plugin.getLogger().info("已注销 Skill: " + skill.getName());
             return true;
         } catch (Exception e) {
@@ -134,6 +139,54 @@ public class SkillManager {
     }
 
     /**
+     * 根据权限级别获取可用的工具定义
+     * 只返回调用者有权限使用的工具
+     * 
+     * @param requiredLevel 调用者的权限级别
+     * @return 过滤后的工具定义 JSON 数组
+     */
+    public JsonArray getToolsForPermissionLevel(String requiredLevel) {
+        JsonArray allTools = new JsonArray();
+        int callerLevel = getPermissionLevelValue(requiredLevel);
+        
+        for (Skill skill : registeredSkills.values()) {
+            if (skill.isAvailable()) {
+                for (JsonObject tool : skill.getTools()) {
+                    String toolName = tool.getAsJsonObject("function").get("name").getAsString();
+                    String toolRequiredLevel = skill.getToolPermissionLevel(toolName);
+                    int toolLevel = getPermissionLevelValue(toolRequiredLevel);
+                    
+                    if (callerLevel >= toolLevel) {
+                        allTools.add(tool);
+                    }
+                }
+            }
+        }
+        return allTools;
+    }
+
+    /**
+     * 获取权限级别的数值
+     * 
+     * @param level 权限级别字符串
+     * @return 权限级别数值
+     */
+    private int getPermissionLevelValue(String level) {
+        switch (level.toUpperCase()) {
+            case "PLAYER":
+                return 1;
+            case "ADMIN":
+                return 2;
+            case "SUPER_ADMIN":
+                return 3;
+            case "CONSOLE":
+                return 4;
+            default:
+                return 0;
+        }
+    }
+
+    /**
      * 获取所有 Skill 的系统提示词
      * 
      * @return 合并后的系统提示词
@@ -152,15 +205,40 @@ public class SkillManager {
     }
 
     /**
+     * 检查调用者是否有权限使用指定工具
+     * 
+     * @param toolName 工具名称
+     * @param callerLevel 调用者的权限级别
+     * @return 如果有权限返回 true
+     */
+    public boolean hasToolPermission(String toolName, String callerLevel) {
+        String skillId = toolToSkillMap.get(toolName);
+        if (skillId == null) {
+            return false;
+        }
+
+        Skill skill = registeredSkills.get(skillId);
+        if (skill == null || !skill.isAvailable()) {
+            return false;
+        }
+
+        int callerLevelValue = getPermissionLevelValue(callerLevel);
+        int toolLevelValue = getPermissionLevelValue(skill.getToolPermissionLevel(toolName));
+        
+        return callerLevelValue >= toolLevelValue;
+    }
+
+    /**
      * 执行工具调用
      * 根据工具名称找到对应的 Skill 并执行
      * 
      * @param sender 命令发送者
      * @param toolName 工具名称
      * @param args 工具参数
+     * @param callerLevel 调用者的权限级别
      * @return 执行结果
      */
-    public String executeTool(CommandSender sender, String toolName, JsonObject args) {
+    public String executeTool(CommandSender sender, String toolName, JsonObject args, String callerLevel) {
         String skillId = toolToSkillMap.get(toolName);
         if (skillId == null) {
             return "错误: 未找到工具 " + toolName;
@@ -175,11 +253,91 @@ public class SkillManager {
             return "错误: Skill 不可用 " + skill.getName();
         }
 
+        int callerLevelValue = getPermissionLevelValue(callerLevel);
+        int toolLevelValue = getPermissionLevelValue(skill.getToolPermissionLevel(toolName));
+        
+        if (callerLevelValue < toolLevelValue) {
+            return "错误: 权限不足，无法使用工具 " + toolName + " (需要: " + skill.getToolPermissionLevel(toolName) + ")";
+        }
+
         try {
             return skill.executeTool(sender, toolName, args);
         } catch (Exception e) {
             return "执行工具失败: " + toolName + " - " + e.getMessage();
         }
+    }
+
+    /**
+     * 执行工具调用（基于会话上下文）
+     * 使用 AISessionContext 进行权限控制
+     * 
+     * @param sender 命令发送者
+     * @param toolName 工具名称
+     * @param args 工具参数
+     * @param context AI 会话上下文
+     * @return 执行结果
+     */
+    public String executeTool(CommandSender sender, String toolName, JsonObject args, AISessionContext context) {
+        if (context == null) {
+            return "错误: 缺少会话上下文，无法执行工具 " + toolName;
+        }
+
+        String skillId = toolToSkillMap.get(toolName);
+        if (skillId == null) {
+            return "错误: 未找到工具 " + toolName;
+        }
+
+        Skill skill = registeredSkills.get(skillId);
+        if (skill == null) {
+            return "错误: Skill 不存在 " + skillId;
+        }
+
+        if (!skill.isAvailable()) {
+            return "错误: Skill 不可用 " + skill.getName();
+        }
+
+        if (!hasSufficientPermission(toolName, context.getPermissionLevel())) {
+            return "权限不足：你的权限等级为 " + context.getPermissionLevel()
+                    + "，该操作需要 " + skill.getToolPermissionLevel(toolName) + " 权限。";
+        }
+
+        try {
+            return skill.executeTool(sender, toolName, args);
+        } catch (Exception e) {
+            return "执行工具失败: " + toolName + " - " + e.getMessage();
+        }
+    }
+
+    /**
+     * 检查调用者是否有足够权限使用指定工具
+     * 
+     * @param toolName 工具名称
+     * @param callerLevel 调用者的权限级别字符串
+     * @return 如果有足够权限返回 true
+     */
+    public boolean hasSufficientPermission(String toolName, String callerLevel) {
+        return hasToolPermission(toolName, callerLevel);
+    }
+
+    /**
+     * 根据权限级别过滤可用工具列表
+     * 只返回调用者有权限使用的工具
+     * 
+     * @param permissionLevel 调用者的权限级别
+     * @return 过滤后的工具定义 JSON 数组
+     */
+    public JsonArray filterToolsByPermission(String permissionLevel) {
+        return getToolsForPermissionLevel(permissionLevel);
+    }
+
+    /**
+     * 执行工具调用（旧版本，向后兼容）
+     * 
+     * @deprecated 请使用 executeTool(sender, toolName, args, context)
+     */
+    @Deprecated
+    public String executeTool(CommandSender sender, String toolName, JsonObject args) {
+        return executeTool(sender, toolName, args, "ADMIN");
     }
 
     /**
@@ -258,6 +416,7 @@ public class SkillManager {
 
                                     // 注册 Skill
                                     if (registerSkill(skill)) {
+                                        skillToFileMap.put(skill.getId(), file.getAbsolutePath());
                                         loadedCount++;
                                     }
                                 }
@@ -281,6 +440,105 @@ public class SkillManager {
     }
 
     /**
+     * 热重载指定 Skill
+     * 
+     * @param skillId Skill ID
+     * @return 操作结果
+     */
+    public String reloadSkill(String skillId) {
+        Skill skill = registeredSkills.get(skillId);
+        if (skill == null) {
+            return "错误: 未找到 Skill '" + skillId + "'";
+        }
+
+        String filePath = skillToFileMap.get(skillId);
+        if (filePath == null) {
+            return "错误: Skill '" + skillId + "' 不是从文件加载的，无法热重载";
+        }
+
+        File file = new File(filePath);
+        if (!file.exists()) {
+            return "错误: Skill 文件不存在: " + filePath;
+        }
+
+        try {
+            unregisterSkill(skillId);
+            plugin.getLogger().info("正在热重载 Skill: " + skillId + " 从 " + file.getName());
+
+            java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
+            try (java.net.URLClassLoader classLoader = new java.net.URLClassLoader(
+                    urls,
+                    this.getClass().getClassLoader())) {
+
+                java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file);
+                java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
+
+                while (entries.hasMoreElements()) {
+                    java.util.jar.JarEntry entry = entries.nextElement();
+                    String entryName = entry.getName();
+
+                    if (entryName.endsWith(".class")) {
+                        String className = entryName.replace('/', '.').replace('\\', '.').substring(0, entryName.length() - 6);
+
+                        try {
+                            Class<?> clazz = classLoader.loadClass(className);
+
+                            if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
+                                Skill newSkill = (Skill) clazz.getDeclaredConstructor().newInstance();
+
+                                if (registerSkill(newSkill)) {
+                                    skillToFileMap.put(newSkill.getId(), file.getAbsolutePath());
+                                    jarFile.close();
+                                    return "Skill '" + newSkill.getName() + "' v" + newSkill.getVersion() + " 已热重载成功";
+                                }
+                            }
+                        } catch (ClassNotFoundException | InstantiationException |
+                               IllegalAccessException | java.lang.reflect.InvocationTargetException |
+                               NoSuchMethodException e) {
+                        }
+                    }
+                }
+
+                jarFile.close();
+            }
+
+            return "错误: 未能在文件中找到 Skill '" + skillId + "' 的类";
+        } catch (Exception e) {
+            plugin.getLogger().severe("热重载 Skill 失败: " + skillId + " - " + e.getMessage());
+            e.printStackTrace();
+            return "热重载失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 热重载所有从文件加载的 Skill
+     * 
+     * @return 操作结果
+     */
+    public String reloadAllSkills() {
+        List<String> skillsToReload = new ArrayList<>(skillToFileMap.keySet());
+        if (skillsToReload.isEmpty()) {
+            return "没有可热重载的 Skill（所有 Skill 均为内置）";
+        }
+
+        StringBuilder result = new StringBuilder();
+        int successCount = 0;
+        int failCount = 0;
+
+        for (String skillId : skillsToReload) {
+            String res = reloadSkill(skillId);
+            if (res.contains("成功")) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+            result.append("- ").append(skillId).append(": ").append(res).append("\n");
+        }
+
+        return "热重载完成: 成功 " + successCount + " 个, 失败 " + failCount + " 个\n" + result.toString().trim();
+    }
+
+    /**
      * 关闭所有 Skill
      */
     public void shutdown() {
@@ -294,6 +552,7 @@ public class SkillManager {
         }
         registeredSkills.clear();
         toolToSkillMap.clear();
+        skillToFileMap.clear();
     }
 
     /**
