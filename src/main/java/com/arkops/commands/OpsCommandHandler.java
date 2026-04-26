@@ -199,6 +199,9 @@ public class OpsCommandHandler {
                 JsonObject assistantMsg = new JsonObject();
                 assistantMsg.addProperty("role", "assistant");
                 assistantMsg.add("tool_calls", message.get("tool_calls"));
+                if (message.has("reasoning_content") && !message.get("reasoning_content").isJsonNull()) {
+                    assistantMsg.addProperty("reasoning_content", message.get("reasoning_content").getAsString());
+                }
                 messages.add(assistantMsg);
 
                 for (int i = 0; i < toolCalls.size(); i++) {
@@ -285,6 +288,9 @@ public class OpsCommandHandler {
                     JsonObject assistantMsg = new JsonObject();
                     assistantMsg.addProperty("role", "assistant");
                     assistantMsg.add("tool_calls", message.get("tool_calls"));
+                    if (message.has("reasoning_content") && !message.get("reasoning_content").isJsonNull()) {
+                        assistantMsg.addProperty("reasoning_content", message.get("reasoning_content").getAsString());
+                    }
                     messages.add(assistantMsg);
 
                     for (int i = 0; i < toolCalls.size(); i++) {
