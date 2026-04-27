@@ -1,100 +1,168 @@
 # ArkOps-Ai Skill 开发文档
 
+> **文档版本**: v2.0 | **最后更新**: 2026-04-27 | **适用版本**: ArkOps-Ai 2.0.0+
+
+---
+
 ## 目录
 
-1. [概述](#概述)
-2. [架构设计](#架构设计)
-3. [快速开始](#快速开始)
-4. [⚠️ 重要：Skill ≠ Plugin](#重要skill--plugin)
-5. [会话级权限上下文 (AISessionContext)](#会话级权限上下文-aisessioncontext)
-6. [Skill 接口详解](#skill-接口详解)
-7. [工具定义详解](#工具定义详解)
-8. [系统提示词编写指南](#系统提示词编写指南)
-9. [完整示例：经济管理系统](#完整示例经济管理系统)
-10. [完整示例：世界编辑工具](#完整示例世界编辑工具)
-11. [最佳实践](#最佳实践)
-12. [常见问题](#常见问题)
-13. [版本兼容性](#版本兼容性)
+1. [概述](#1-概述)
+2. [架构设计](#2-架构设计)
+3. [快速开始](#3-快速开始)
+4. [核心概念：Skill ≠ Plugin](#4-核心概念skill--plugin)
+5. [会话级权限上下文 (AISessionContext)](#5-会话级权限上下文-aisessioncontext)
+6. [Skill 接口详解](#6-skill-接口详解)
+7. [工具定义与实现](#7-工具定义与实现)
+8. [系统提示词编写指南](#8-系统提示词编写指南)
+9. [完整示例：经济管理系统](#9-完整示例经济管理系统)
+10. [完整示例：世界编辑工具](#10-完整示例世界编辑工具)
+11. [最佳实践](#11-最佳实践)
+12. [常见问题 (FAQ)](#12-常见问题-faq)
+13. [版本兼容性](#13-版本兼容性)
+14. [API 参考](#14-api-参考)
 
 ---
 
-## 概述
+## 1. 概述
 
-### 什么是 Skill？
+### 1.1 什么是 Skill？
 
-Skill 是 ArkOps-Ai 的扩展系统，允许开发者为 AI 添加新的能力。每个 Skill 是一组相关功能的集合，通过定义工具（Tools）让 AI 能够调用这些功能。
+Skill 是 ArkOps-Ai 的模块化扩展系统，允许开发者为 AI 添加自定义能力。每个 Skill 是一组相关功能的集合，通过定义工具（Tools）让 AI 能够调用这些功能。
 
-### Skill 的优势
+### 1.2 设计目标
 
-- **模块化设计**：每个 Skill 独立开发、独立部署
+- **模块化**：每个 Skill 独立开发、独立部署、互不干扰
 - **动态注册**：运行时注册，支持热插拔
 - **AI 友好**：自动集成到 AI 的工具调用系统
-- **权限控制**：继承 ArkOps-Ai 的权限系统
-- **易于开发**：只需实现一个接口
+- **权限控制**：继承 ArkOps-Ai 的四级权限系统
+- **易于开发**：只需实现一个接口即可
 
-### 使用场景
+### 1.3 使用场景
 
-- 集成经济插件（如 Vault）
-- 添加世界编辑功能
-- 实现自定义命令系统
-- 连接外部 API（如 Discord、Webhook）
-- 添加数据分析功能
-
----
-
-## 架构设计
-
-```
-┌──────────────────────────────────────────────────┐
-│              ArkOps-Ai 核心系统                    │
-│  ┌────────────────────────────────────────┐     │
-│  │        AISessionContext                 │     │
-│  │  - 用户身份 (QQ / 玩家 / 控制台)        │     │
-│  │  - 权限级别                             │     │
-│  │  - 不可变对象，全链路传递                │     │
-│  └────────────────┬───────────────────────┘     │
-│                   │                              │
-│  ┌────────────────▼──────────────────────┐     │
-│  │        OpsCommandHandler              │     │
-│  │  - 构建工具列表 (filterToolsByPermission)│   │
-│  │  - 执行工具调用 (携带 AISessionContext) │     │
-│  │  - 管理系统提示                        │     │
-│  │  - QQ消息入口 (handleQQMessage / handleQQMessageWithResponse)│
-│  └────────────────┬──────────────────────┘     │
-│                   │                              │
-│  ┌────────────────▼──────────────────────┐     │
-│  │          SkillManager                 │     │
-│  │  - 注册/注销 Skill                    │     │
-│  │  - 工具映射管理                        │     │
-│  │  - 权限校验 (hasSufficientPermission)  │     │
-│  │  - 双重权限校验                        │     │
-│  └────────────────┬──────────────────────┘     │
-│                   │                              │
-│  ┌────────────────▼──────────────────────┐     │
-│  │            Skill 实例                  │     │
-│  │  - EconomySkill                       │     │
-│  │  - KnowledgeBaseSkill                 │     │
-│  │  - YourCustomSkill                    │     │
-│  └────────────────────────────────────────┘     │
-└──────────────────────────────────────────────────┘
-```
-
-### 核心组件
-
-| 组件 | 说明 |
+| 场景 | 说明 |
 |------|------|
-| `AISessionContext` | 会话级权限上下文，携带用户身份和权限级别，全链路传递 |
-| `Skill` 接口 | 定义 Skill 的标准接口 |
-| `SkillManager` | 管理所有 Skill 的生命周期，权限校验 |
-| `OpsCommandHandler` | 集成 Skill 到 AI 系统，QQ消息入口 |
+| 经济插件集成 | 连接 Vault 等经济插件，提供余额查询、转账等功能 |
+| 世界编辑 | 添加方块操作、区域填充、实体生成等功能 |
+| 自定义命令 | 实现服务器特定的业务逻辑 |
+| 外部 API 连接 | 集成 Discord、Webhook、数据库等外部服务 |
+| 数据分析 | 提供服务器统计、玩家行为分析等功能 |
 
 ---
 
-## 快速开始
+## 2. 架构设计
 
-### 1. 创建项目
+### 2.1 系统架构图
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                    ArkOps-Ai 核心系统                        │
+│                                                            │
+│  ┌──────────────────────────────────────────────────┐     │
+│  │              AISessionContext                     │     │
+│  │  - 用户身份 (QQ / 玩家 / 控制台)                  │     │
+│  │  - 权限级别 (PLAYER/ADMIN/SUPER_ADMIN/CONSOLE)   │     │
+│  │  - 不可变对象，全链路传递                         │     │
+│  └────────────────────┬─────────────────────────────┘     │
+│                       │                                    │
+│  ┌────────────────────▼─────────────────────────────┐     │
+│  │              OpsCommandHandler                    │     │
+│  │  - 构建工具列表 (filterToolsByPermission)         │     │
+│  │  - 执行工具调用 (携带 AISessionContext)           │     │
+│  │  - 管理系统提示词                                 │     │
+│  │  - QQ 消息入口                                    │     │
+│  └────────────────────┬─────────────────────────────┘     │
+│                       │                                    │
+│  ┌────────────────────▼─────────────────────────────┐     │
+│  │                SkillManager                       │     │
+│  │  - 注册/注销 Skill                                │     │
+│  │  - 工具映射管理                                   │     │
+│  │  - 权限校验 (hasSufficientPermission)             │     │
+│  │  - 双重权限校验                                   │     │
+│  └────────────────────┬─────────────────────────────┘     │
+│                       │                                    │
+│  ┌────────────────────▼─────────────────────────────┐     │
+│  │                 Skill 实例                         │     │
+│  │  - EconomySkill                                   │     │
+│  │  - KnowledgeBaseSkill                             │     │
+│  │  - YourCustomSkill                                │     │
+│  └──────────────────────────────────────────────────┘     │
+└────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 核心组件
+
+| 组件 | 职责 | 关键方法 |
+|------|------|----------|
+| `AISessionContext` | 会话级权限上下文，携带用户身份和权限级别 | `console()`, `player()`, `qqUser()` |
+| `Skill` 接口 | 定义 Skill 的标准接口 | `getTools()`, `executeTool()`, `getSystemPrompt()` |
+| `SkillManager` | 管理所有 Skill 的生命周期和权限校验 | `registerSkill()`, `executeTool()` |
+| `OpsCommandHandler` | 集成 Skill 到 AI 系统，处理消息入口 | `executeAgentLoop()`, `buildTools()` |
+
+### 2.3 调用链路
+
+```
+用户输入 (命令/聊天)
+    │
+    ▼
+┌─────────────────────┐
+│  创建 AISessionContext │  ← 识别用户身份和权限
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  构建工具列表        │  ← 根据权限过滤可用工具
+│  (权限过滤)          │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  AI Agent 循环       │  ← 递归处理，支持多步工具调用
+│  executeAgentLoop    │
+└──────────┬──────────┘
+           │
+    ┌──────┴──────┐
+    ▼             ▼
+┌───────┐   ┌──────────┐
+│ AI 响应│   │ 工具调用  │
+└───────┘   └────┬─────┘
+                 │
+                 ▼
+          ┌──────────────┐
+          │ SkillManager  │  ← 双重权限校验
+          │ executeTool() │
+          └──────┬───────┘
+                 │
+                 ▼
+          ┌──────────────┐
+          │ Skill 实例    │  ← 执行具体业务逻辑
+          │ executeTool() │
+          └──────────────┘
+```
+
+---
+
+## 3. 快速开始
+
+### 3.1 创建项目
 
 在你的 Maven 项目中添加依赖：
+
+#### 方式一：使用 GitHub Packages（推荐）
+
+1. **配置仓库和认证**
+
+在你的 `pom.xml` 中添加 GitHub Packages 仓库：
+
+```xml
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai-CN</url>
+    </repository>
+</repositories>
+```
+
+2. **添加依赖**
 
 ```xml
 <dependencies>
@@ -102,21 +170,52 @@ Skill 是 ArkOps-Ai 的扩展系统，允许开发者为 AI 添加新的能力�
     <dependency>
         <groupId>com.arkops</groupId>
         <artifactId>ArkOps-Ai</artifactId>
-        <version>2.0.0</version>
+        <version>2.2.0</version>
         <scope>provided</scope>
     </dependency>
     
     <!-- Bukkit API -->
     <dependency>
-        <groupId>org.spigotmc</groupId>
-        <artifactId>spigot-api</artifactId>
-        <version>1.20.4-R0.1-SNAPSHOT</version>
+        <groupId>org.purpurmc.purpur</groupId>
+        <artifactId>purpur-api</artifactId>
+        <version>1.21.11-R0.1-SNAPSHOT</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
 ```
 
-### 2. 实现 Skill 接口
+3. **配置本地认证**
+
+在 `~/.m2/settings.xml` 中添加 GitHub 认证：
+
+```xml
+<settings>
+    <servers>
+        <server>
+            <id>github</id>
+            <username>你的 GitHub 用户名</username>
+            <password>你的 GitHub Personal Access Token</password>
+        </server>
+    </servers>
+</settings>
+```
+
+> **提示**：GitHub Personal Access Token 需要 `read:packages` 权限。
+> 创建方法：GitHub Settings → Developer settings → Personal access tokens → Generate new token
+
+#### 方式二：从源码构建
+
+如果你需要修改 ArkOps-Ai 源码或使用最新版本：
+
+```bash
+git clone https://github.com/DreamArk-Studio/ArkOps-Ai-CN.git
+cd ArkOps-Ai-CN
+mvn clean install -DskipTests
+```
+
+然后在你的项目中使用相同的依赖配置（版本号保持一致）。
+
+### 3.2 实现 Skill 接口
 
 ```java
 package com.example.myskill;
@@ -183,8 +282,6 @@ public class MyFirstSkill implements Skill {
     @Override
     public void onEnable(JavaPlugin mainPlugin) {
         // 初始化逻辑
-        // 如果需要注册事件，使用 mainPlugin：
-        // Bukkit.getPluginManager().registerEvents(this, mainPlugin);
     }
     
     @Override
@@ -194,7 +291,7 @@ public class MyFirstSkill implements Skill {
 }
 ```
 
-### 3. 注册 Skill
+### 3.3 注册 Skill
 
 在你的插件主类中注册：
 
@@ -206,31 +303,32 @@ SkillManager skillManager = ArkOpsAi.getInstance().getSkillManager();
 skillManager.registerSkill(new MyFirstSkill());
 ```
 
-### 4. 编译并测试
+### 3.4 编译并测试
 
 ```bash
 mvn clean package
 ```
 
-将生成的 jar 文件放入服务器 `plugins` 文件夹。
+将生成的 jar 文件放入服务器 `plugins/ArkOps-Ai/skills/` 目录，重启服务器。
 
 ---
 
-## ⚠️ 重要：Skill ≠ Plugin
+## 4. 核心概念：Skill ≠ Plugin
 
-### 核心概念
+### 4.1 核心差异
 
-**Skill 不是 Bukkit Plugin**，这是开发 Skill 时最重要的概念。
+**这是开发 Skill 时最重要的概念**。Skill 不是独立的 Bukkit Plugin，而是 ArkOps-Ai 的内部组件。
 
 | 特性 | Bukkit Plugin | ArkOps-Ai Skill |
 |------|---------------|-----------------|
 | 继承 | `JavaPlugin` | `Skill` 接口 |
-| 生命周期 | Bukkit 管理 | SkillManager 管理 |
+| 生命周期管理 | Bukkit | SkillManager |
 | 事件注册 | `registerEvents(this, this)` | `registerEvents(this, mainPlugin)` |
-| 日志 | `getLogger()` | `mainPlugin.getLogger()` |
+| 日志记录 | `getLogger()` | `mainPlugin.getLogger()` |
 | 数据目录 | `getDataFolder()` | `mainPlugin.getDataFolder()` |
+| 配置文件 | 自行管理 | 使用主插件数据目录 |
 
-### 常见错误
+### 4.2 常见错误
 
 ```java
 // ❌ 错误：Skill 不是 Plugin，不能使用 this
@@ -243,7 +341,7 @@ getLogger().info("message");
 new File(getDataFolder(), "config.yml");
 ```
 
-### 正确做法
+### 4.3 正确做法
 
 ```java
 public class MySkill implements Skill, Listener {
@@ -262,72 +360,48 @@ public class MySkill implements Skill, Listener {
 }
 ```
 
-### 为什么这样设计？
+### 4.4 设计原因
 
-Bukkit 的设计是 **一个 jar = 一个 Plugin**。Skill 是 ArkOps-Ai 内部的模块/组件，不是独立的 Bukkit 插件。所有 Skill 共享 ArkOps-Ai 的 Plugin 实例。
+Bukkit 的设计是 **一个 jar = 一个 Plugin**。Skill 是 ArkOps-Ai 内部的模块/组件，不是独立的 Bukkit 插件。所有 Skill 共享 ArkOps-Ai 的 Plugin 实例，这样可以：
+
+- 简化部署流程（只需一个主插件）
+- 统一管理生命周期
+- 共享配置和日志系统
+- 降低资源占用
 
 ---
 
-## 会话级权限上下文 (AISessionContext)
+## 5. 会话级权限上下文 (AISessionContext)
 
-### 什么是 AISessionContext？
+### 5.1 什么是 AISessionContext？
 
-`AISessionContext` 是一个**不可变、线程安全**的会话上下文对象，用于在 AI 调用链路中携带用户身份和权限信息。它解决了以下核心安全问题：
+`AISessionContext` 是一个**不可变、线程安全**的会话上下文对象，用于在 AI 调用链路中携带用户身份和权限信息。
 
-- **身份识别**：区分请求来源是 QQ 用户、游戏内玩家还是控制台
-- **权限隔离**：AI 调用工具时使用真实用户的权限，而非默认的 CONSOLE 权限
-- **防止越权**：每个工具调用都经过双重权限校验
+**解决的核心问题**：
 
-### 调用链路
+| 问题 | 解决方案 |
+|------|----------|
+| 身份识别 | 区分请求来源是 QQ 用户、游戏内玩家还是控制台 |
+| 权限隔离 | AI 调用工具时使用真实用户的权限，而非默认的 CONSOLE 权限 |
+| 防止越权 | 每个工具调用都经过双重权限校验 |
 
-```
-QQ消息 / 游戏内命令 / 控制台命令
-        │
-        ▼
-┌──────────────────────┐
-│  创建 AISessionContext │
-│  .qqUser(...)         │  ← QQ机器人入口
-│  .player(...)         │  ← 游戏内玩家入口
-│  .console()           │  ← 控制台入口
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│   executeAgentLoop    │
-│   (携带 context)       │  ← 递归调用中保持不变
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│   executeToolCall     │
-│   (携带 context)       │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ SkillManager          │
-│ .executeTool(context) │  ← 双重权限校验
-│  ① hasSufficientPermission │
-│  ② skill.executeTool()     │
-└──────────────────────┘
-```
-
-### 类定义
+### 5.2 类定义
 
 ```java
 package com.arkops.session;
 
 public final class AISessionContext {
-    private final String qqUserId;       // QQ用户ID (null = 非QQ用户)
-    private final String permissionLevel; // 权限级别: PLAYER, ADMIN, SUPER_ADMIN, CONSOLE
-    private final String displayName;     // 显示名称
+    // 私有字段
+    private final String qqUserId;          // QQ用户ID (null = 非QQ用户)
+    private final String permissionLevel;   // 权限级别: PLAYER, ADMIN, SUPER_ADMIN, CONSOLE
+    private final String displayName;       // 显示名称
 
     // 工厂方法
     public static AISessionContext console()                        // 控制台
-    public static AISessionContext player(name, level)              // 游戏内玩家
-    public static AISessionContext qqUser(qqId, name, level)       // QQ用户
+    public static AISessionContext player(String name, String level) // 游戏内玩家
+    public static AISessionContext qqUser(String qqId, String name, String level) // QQ用户
 
-    // Getter
+    // Getter 方法
     public String getQqUserId()
     public String getPermissionLevel()
     public String getDisplayName()
@@ -335,7 +409,7 @@ public final class AISessionContext {
 }
 ```
 
-### 使用场景
+### 5.3 使用场景
 
 #### 场景 1: QQ 机器人入口（异步广播模式）
 
@@ -357,7 +431,7 @@ public void handleQQMessage(String qqUserId, String command, String permissionLe
 }
 ```
 
-#### 场景 1.5: QQ 机器人入口（同步返回模式，推荐）
+#### 场景 2: QQ 机器人入口（同步返回模式，推荐）
 
 ```java
 // QQ 机器人收到消息时调用，直接返回 AI 回复
@@ -379,7 +453,7 @@ public String handleQQMessageWithResponse(String qqUserId, String message, Strin
 
 > **推荐使用 `handleQQMessageWithResponse`**：不依赖日志文件读取，直接获取 AI 回复，100% 准确，性能更好。
 
-#### 场景 2: 游戏内玩家
+#### 场景 3: 游戏内玩家
 
 ```java
 public void handleCommand(CommandSender sender, String command) {
@@ -394,7 +468,7 @@ public void handleCommand(CommandSender sender, String command) {
 }
 ```
 
-### 双重权限校验
+### 5.4 双重权限校验
 
 系统在两条路径上同时进行权限控制，确保安全：
 
@@ -420,7 +494,7 @@ public String executeTool(CommandSender sender, String toolName, JsonObject args
 }
 ```
 
-### Skill 开发者视角
+### 5.5 Skill 开发者视角
 
 Skill 开发者**不需要**直接操作 `AISessionContext`。只需正确实现 `getToolPermissionLevel()` 方法，框架会自动处理权限校验：
 
@@ -440,19 +514,21 @@ public String getToolPermissionLevel(String toolName) {
 }
 ```
 
-### 安全原则
+### 5.6 安全原则
 
 1. **禁止信任 AI 传入的权限参数** — 权限始终来自服务器系统（QQ用户级别/游戏内权限）
 2. **禁止绕过 executeTool 校验** — context 为空时立即拒绝
 3. **禁止通过字符串拼接执行命令** — 所有操作经过权限校验
 4. **不使用 ThreadLocal** — `AISessionContext` 作为方法参数显式传递
 
-### 原生工具权限校验
+### 5.7 原生工具权限校验
 
 `OpsCommandHandler.executeToolCall()` 中每个原生工具调用前都通过 `requirePermission()` 进行校验，形成**第三层权限控制**：
 
 ```java
-private void requirePermission(PermissionManager.PermissionLevel callerLevel, PermissionManager.PermissionLevel requiredLevel, String toolName) {
+private void requirePermission(PermissionManager.PermissionLevel callerLevel, 
+                               PermissionManager.PermissionLevel requiredLevel, 
+                               String toolName) {
     if (callerLevel.getLevel() < requiredLevel.getLevel()) {
         throw new SecurityException("权限不足：你的权限等级为 " + callerLevel.getDisplayName()
                 + "，该操作需要 " + requiredLevel.getDisplayName() + " 权限。");
@@ -460,58 +536,29 @@ private void requirePermission(PermissionManager.PermissionLevel callerLevel, Pe
 }
 ```
 
-`executeToolCall` 方法入口处先将上下文中的权限字符串解析为枚举，每个工具调用前自动拦截：
-
-```java
-String permissionLevel = context != null ? context.getPermissionLevel() : "PLAYER";
-PermissionManager.PermissionLevel callerLevel = PermissionManager.PermissionLevel.fromString(permissionLevel);
-
-switch (toolName) {
-    case "restart_server":
-        requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
-        return actionManager.restartServer(sender);
-    case "hot_reload_plugin":
-    case "hot_unload_plugin":
-    case "hot_load_plugin":
-        requirePermission(callerLevel, PermissionManager.PermissionLevel.ADMIN, toolName);
-        // ...
-}
-```
-
 **权限映射表**：
 
-| 工具 | 需要权限 |
-|------|----------|
-| `restart_server` | SUPER_ADMIN |
-| `stop_server` | SUPER_ADMIN |
-| `reload_server` | SUPER_ADMIN |
-| `ban_player` | SUPER_ADMIN |
-| `set_permission` | SUPER_ADMIN |
-| `hot_reload_plugin` | ADMIN |
-| `hot_unload_plugin` | ADMIN |
-| `hot_load_plugin` | ADMIN |
-| `list_plugins` | ADMIN |
-| `execute_command` | ADMIN |
-| `set_game_time` | ADMIN |
-| `set_weather` | ADMIN |
-| `set_game_mode` | ADMIN |
-| `get_server_info` | ADMIN |
-| `get_player_info` | ADMIN |
-| `teleport_player` | ADMIN |
-| `give_item` | ADMIN |
-| `kick_player` | ADMIN |
-| `get_player_held_item` | ADMIN |
-| `get_player_biome` | ADMIN |
-| `get_player_looking_at` | ADMIN |
-| `get_player_detailed_info` | ADMIN |
-| `get_online_players` | 无限制 |
-| `check_permission` | 无限制 |
+| 工具 | 需要权限 | 工具 | 需要权限 |
+|------|----------|------|----------|
+| `restart_server` | SUPER_ADMIN | `get_server_info` | ADMIN |
+| `stop_server` | SUPER_ADMIN | `get_player_info` | ADMIN |
+| `reload_server` | SUPER_ADMIN | `teleport_player` | ADMIN |
+| `ban_player` | SUPER_ADMIN | `give_item` | ADMIN |
+| `set_permission` | SUPER_ADMIN | `kick_player` | ADMIN |
+| `hot_reload_plugin` | ADMIN | `get_player_held_item` | ADMIN |
+| `hot_unload_plugin` | ADMIN | `get_player_biome` | ADMIN |
+| `hot_load_plugin` | ADMIN | `get_player_looking_at` | ADMIN |
+| `list_plugins` | ADMIN | `get_player_detailed_info` | ADMIN |
+| `execute_command` | ADMIN | `get_online_players` | 无限制 |
+| `set_game_time` | ADMIN | `check_permission` | 无限制 |
+| `set_weather` | ADMIN | | |
+| `set_game_mode` | ADMIN | | |
 
 ---
 
-## Skill 接口详解
+## 6. Skill 接口详解
 
-### 接口方法总览
+### 6.1 接口方法总览
 
 | 方法 | 返回类型 | 必填 | 说明 |
 |------|----------|------|------|
@@ -520,14 +567,14 @@ switch (toolName) {
 | `getDescription()` | String | 是 | Skill 功能描述 |
 | `getVersion()` | String | 是 | Skill 版本号 |
 | `getAuthor()` | String | 是 | Skill 作者 |
-| `getTools()` | List<JsonObject> | 是 | 工具定义列表 |
+| `getTools()` | List\<JsonObject\> | 是 | 工具定义列表 |
 | `executeTool()` | String | 是 | 工具执行逻辑 |
 | `getSystemPrompt()` | String | 是 | AI 系统提示词 |
 | `isAvailable()` | boolean | 是 | Skill 可用性检查 |
 | `onEnable(JavaPlugin)` | void | 是 | 启用时调用，接收主插件实例 |
 | `onDisable()` | void | 是 | 禁用时调用 |
 
-### 方法详细说明
+### 6.2 方法详细说明
 
 #### getId()
 
@@ -609,18 +656,9 @@ public String executeTool(CommandSender sender, String toolName, JsonObject args
 }
 ```
 
-**参数说明**：
-- `sender`: 命令发送者（玩家或控制台）
-- `toolName`: AI 决定调用的工具名称
-- `args`: 工具参数（JSON 对象）
-
-**返回值**：
-- 返回执行结果的字符串
-- 这个结果会被 AI 读取并展示给用户
-
 #### getSystemPrompt()
 
-返回 AI 的系统提示词。告诉 AI 如何使用这个 Skill 的工具。
+返回 AI 系统提示词，告诉 AI 如何使用你的工具。
 
 ```java
 @Override
@@ -628,72 +666,64 @@ public String getSystemPrompt() {
     return "=== Economy Skill ===\n" +
            "You have access to economy management tools:\n" +
            "- get_balance: Check a player's current balance\n" +
-           "- transfer_money: Transfer money between players\n" +
-           "- deposit_money: Add money to a player's account\n" +
-           "- withdraw_money: Remove money from a player's account\n\n" +
-           "Use these tools when players ask about money, balance, economy, " +
-           "or want to transfer funds.\n" +
-           "Always verify player names exist before performing operations.\n" +
-           "Never allow negative amounts or transfers that would result " +
-           "in negative balances.";
+           "- transfer_money: Transfer money between players\n\n" +
+           "Use these tools when players ask about money or balance.\n" +
+           "Always verify player names exist before performing operations.";
 }
 ```
 
-**编写要点**：
-- 列出所有可用工具
-- 说明每个工具的作用
-- 说明使用场景
-- 添加使用注意事项
-- 说明限制条件
-
 #### isAvailable()
 
-检查 Skill 是否可用。可以检查依赖是否满足。
+检查 Skill 是否可用。可用于检查依赖是否满足。
 
 ```java
 @Override
 public boolean isAvailable() {
-    // 检查是否安装了 Vault 插件
+    // 检查 Vault 是否安装
     return Bukkit.getPluginManager().getPlugin("Vault") != null;
 }
 ```
 
-#### onEnable(JavaPlugin) / onDisable()
+#### onEnable(JavaPlugin mainPlugin)
 
-Skill 启用和禁用时的生命周期方法。
-
-**重要：Skill ≠ Bukkit Plugin**
-
-`onEnable` 方法会接收 ArkOps-Ai 的主插件实例。如果你需要注册事件监听器，**必须使用这个主插件实例**，而不是 `this`。
+Skill 启用时调用。接收 ArkOps-Ai 的主插件实例。
 
 ```java
 @Override
 public void onEnable(JavaPlugin mainPlugin) {
-    // 初始化数据库连接
-    // 加载配置文件
-    
-    // ✅ 正确：使用 mainPlugin 注册事件
+    // 注册事件监听器
     Bukkit.getPluginManager().registerEvents(this, mainPlugin);
     
-    // ❌ 错误：Skill 不是 Plugin，不能使用 this
-    // Bukkit.getPluginManager().registerEvents(this, this);
+    // 记录日志
+    mainPlugin.getLogger().info("EconomySkill enabled");
+    
+    // 加载配置
+    loadConfig(mainPlugin.getDataFolder());
 }
+```
 
+#### onDisable()
+
+Skill 禁用时调用。用于清理资源。
+
+```java
 @Override
 public void onDisable() {
-    // 关闭数据库连接
-    // 保存数据
-    // 清理资源
+    // 清理数据
+    cache.clear();
+    
+    // 保存状态
+    saveState();
 }
 ```
 
 ---
 
-## 工具定义详解
+## 7. 工具定义与实现
 
-### 工具结构
+### 7.1 工具定义结构
 
-每个工具是一个 JSON 对象，结构如下：
+每个工具定义是一个 JSON 对象，符合 OpenAI Function Calling 规范：
 
 ```json
 {
@@ -719,7 +749,7 @@ public void onDisable() {
 }
 ```
 
-### 参数类型
+### 7.2 参数类型
 
 | 类型 | 说明 | 示例 |
 |------|------|------|
@@ -729,7 +759,7 @@ public void onDisable() {
 | `array` | 数组 | 玩家列表 |
 | `object` | 对象 | 复杂数据结构 |
 
-### 创建工具的辅助类
+### 7.3 创建工具的辅助类
 
 使用 `PropsBuilder` 简化参数定义：
 
@@ -770,7 +800,7 @@ private PropsBuilder createPropsBuilder() {
 }
 ```
 
-### 工具定义示例
+### 7.4 工具定义示例
 
 #### 简单工具（无参数）
 
@@ -809,11 +839,31 @@ tools.add(createTool(
 ));
 ```
 
+### 7.5 工具权限设置
+
+为每个工具设置所需的最低权限级别：
+
+```java
+@Override
+public String getToolPermissionLevel(String toolName) {
+    switch (toolName) {
+        case "get_balance":
+            return "PLAYER";       // 所有用户可查询
+        case "transfer_money":
+            return "ADMIN";        // 仅管理员可转账
+        case "set_balance":
+            return "SUPER_ADMIN";  // 仅超级管理员可设置
+        default:
+            return "ADMIN";
+    }
+}
+```
+
 ---
 
-## 系统提示词编写指南
+## 8. 系统提示词编写指南
 
-### 目的
+### 8.1 目的
 
 系统提示词告诉 AI：
 1. 有哪些工具可用
@@ -821,7 +871,7 @@ tools.add(createTool(
 3. 何时使用这些工具
 4. 使用时的注意事项
 
-### 结构模板
+### 8.2 结构模板
 
 ```
 === [Skill Name] ===
@@ -835,7 +885,7 @@ Always [best practices].
 Never [restrictions].
 ```
 
-### 示例：经济系统
+### 8.3 示例：经济系统
 
 ```
 === Economy Skill ===
@@ -852,7 +902,7 @@ Never allow negative amounts or transfers that would result in negative balances
 Always confirm large transfers with the user before executing.
 ```
 
-### 示例：世界编辑
+### 8.4 示例：世界编辑
 
 ```
 === World Edit Skill ===
@@ -868,7 +918,7 @@ Never allow operations that could crash the server.
 Always warn users about potentially lag-causing operations.
 ```
 
-### 最佳实践
+### 8.5 最佳实践
 
 1. **清晰明了**：使用简洁的英文描述
 2. **列出所有工具**：确保 AI 知道所有可用工具
@@ -878,9 +928,9 @@ Always warn users about potentially lag-causing operations.
 
 ---
 
-## 完整示例：经济管理系统
+## 9. 完整示例：经济管理系统
 
-### 1. 创建 Skill 类
+### 9.1 创建 Skill 类
 
 ```java
 package com.arkops.skill.example;
@@ -892,6 +942,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1038,6 +1089,22 @@ public class EconomySkill implements Skill {
                "Use these tools when players ask about money, balance, economy, or want to transfer funds.\n" +
                "Always verify player names exist before performing operations.\n" +
                "Never allow negative amounts or transfers that would result in negative balances.";
+    }
+
+    @Override
+    public String getToolPermissionLevel(String toolName) {
+        switch (toolName) {
+            case "get_balance":
+                return "PLAYER";
+            case "transfer_money":
+            case "deposit_money":
+            case "withdraw_money":
+                return "ADMIN";
+            case "set_balance":
+                return "SUPER_ADMIN";
+            default:
+                return "ADMIN";
+        }
     }
 
     @Override
@@ -1198,7 +1265,7 @@ public class EconomySkill implements Skill {
 }
 ```
 
-### 2. 注册 Skill
+### 9.2 注册 Skill
 
 ```java
 // 在插件主类的 onEnable() 中
@@ -1206,7 +1273,7 @@ SkillManager skillManager = new SkillManager(this);
 skillManager.registerSkill(new EconomySkill());
 ```
 
-### 3. 使用示例
+### 9.3 使用示例
 
 玩家在游戏中说：
 ```
@@ -1230,9 +1297,9 @@ Successfully transferred: $100.00 from Steve to Alex
 
 ---
 
-## 完整示例：世界编辑工具
+## 10. 完整示例：世界编辑工具
 
-### 1. 创建 WorldEditSkill
+### 10.1 创建 WorldEditSkill
 
 ```java
 package com.arkops.skill.example;
@@ -1247,6 +1314,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1373,9 +1441,9 @@ public class WorldEditSkill implements Skill {
                     return teleportToCoordinates(
                             args.get("player").getAsString(),
                             args.get("world").getAsString(),
-                            args.get("x").getAsInt(),
-                            args.get("y").getAsInt(),
-                            args.get("z").getAsInt()
+                            args.get("x").getAsDouble(),
+                            args.get("y").getAsDouble(),
+                            args.get("z").getAsDouble()
                     );
                 default:
                     return "Unknown tool: " + toolName;
@@ -1393,12 +1461,23 @@ public class WorldEditSkill implements Skill {
                "- fill_area: Fill a rectangular area with a block type\n" +
                "- get_player_location: Get a player's current location\n" +
                "- teleport_to_coordinates: Teleport a player to specific coordinates\n\n" +
-               "Use these tools when players ask to modify the world, place blocks, " +
-               "build structures, or change the environment.\n" +
-               "Always verify coordinates are within world bounds (-30,000,000 to 30,000,000).\n" +
-               "Never allow operations that could crash the server (e.g., filling millions of blocks).\n" +
-               "Always warn users about potentially lag-causing operations.\n" +
-               "Block types must be valid Minecraft material names (e.g., STONE, GRASS_BLOCK, DIAMOND_BLOCK).";
+               "Use these tools when players ask to modify the world, place blocks, or change environment.\n" +
+               "Always verify coordinates are within world bounds.\n" +
+               "Never allow operations that could crash the server.";
+    }
+
+    @Override
+    public String getToolPermissionLevel(String toolName) {
+        switch (toolName) {
+            case "get_player_location":
+                return "PLAYER";
+            case "set_block":
+            case "fill_area":
+            case "teleport_to_coordinates":
+                return "ADMIN";
+            default:
+                return "ADMIN";
+        }
     }
 
     @Override
@@ -1408,7 +1487,7 @@ public class WorldEditSkill implements Skill {
 
     @Override
     public void onEnable(JavaPlugin mainPlugin) {
-        // 初始化逻辑
+        mainPlugin.getLogger().info("WorldEditSkill enabled");
     }
 
     @Override
@@ -1426,8 +1505,8 @@ public class WorldEditSkill implements Skill {
 
         try {
             Material material = Material.valueOf(blockType.toUpperCase());
-            Location loc = new Location(world, x, y, z);
-            Block block = loc.getBlock();
+            Location location = new Location(world, x, y, z);
+            Block block = world.getBlockAt(location);
             block.setType(material);
             return "Successfully placed " + blockType + " at (" + x + ", " + y + ", " + z + ") in " + worldName;
         } catch (IllegalArgumentException e) {
@@ -1445,31 +1524,26 @@ public class WorldEditSkill implements Skill {
         try {
             Material material = Material.valueOf(blockType.toUpperCase());
             
-            // 计算区域大小
             int minX = Math.min(x1, x2);
             int maxX = Math.max(x1, x2);
             int minY = Math.min(y1, y2);
             int maxY = Math.max(y1, y2);
             int minZ = Math.min(z1, z2);
             int maxZ = Math.max(z1, z2);
-            
-            int blockCount = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
-            
-            // 限制操作大小
-            if (blockCount > 10000) {
-                return "Operation too large: " + blockCount + " blocks. Maximum is 10000 blocks.";
-            }
-            
+
+            int blockCount = 0;
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
-                        Location loc = new Location(world, x, y, z);
-                        loc.getBlock().setType(material);
+                        world.getBlockAt(x, y, z).setType(material);
+                        blockCount++;
                     }
                 }
             }
-            
-            return "Successfully filled area with " + blockType + " (" + blockCount + " blocks) in " + worldName;
+
+            return "Successfully filled " + blockCount + " blocks with " + blockType + 
+                   " in " + worldName + " from (" + x1 + "," + y1 + "," + z1 + 
+                   ") to (" + x2 + "," + y2 + "," + z2 + ")";
         } catch (IllegalArgumentException e) {
             return "Invalid block type: " + blockType;
         }
@@ -1483,14 +1557,14 @@ public class WorldEditSkill implements Skill {
 
         Location loc = player.getLocation();
         return playerName + " is at (" + 
-               String.format("%.1f", loc.getX()) + ", " +
-               String.format("%.1f", loc.getY()) + ", " +
-               String.format("%.1f", loc.getZ()) + ") in world " +
+               String.format("%.1f", loc.getX()) + ", " + 
+               String.format("%.1f", loc.getY()) + ", " + 
+               String.format("%.1f", loc.getZ()) + ") in world " + 
                loc.getWorld().getName();
     }
 
     private String teleportToCoordinates(String playerName, String worldName, 
-                                         int x, int y, int z) {
+                                        double x, double y, double z) {
         Player player = Bukkit.getPlayerExact(playerName);
         if (player == null) {
             return "Player not found: " + playerName;
@@ -1501,9 +1575,12 @@ public class WorldEditSkill implements Skill {
             return "World not found: " + worldName;
         }
 
-        Location loc = new Location(world, x, y, z);
-        player.teleport(loc);
-        return "Teleported " + playerName + " to (" + x + ", " + y + ", " + z + ") in " + worldName;
+        Location location = new Location(world, x, y, z);
+        player.teleport(location);
+        return "Successfully teleported " + playerName + " to (" + 
+               String.format("%.1f", x) + ", " + 
+               String.format("%.1f", y) + ", " + 
+               String.format("%.1f", z) + ") in " + worldName;
     }
 
     // ========== 工具创建辅助方法 ==========
@@ -1560,459 +1637,155 @@ public class WorldEditSkill implements Skill {
 
 ---
 
-## 最佳实践
+## 11. 最佳实践
 
-### 1. 错误处理
+### 11.1 代码组织
 
-始终处理可能的异常情况：
+```
+com.example.myskill/
+├── MySkill.java              # Skill 主类
+├── tools/                    # 工具实现
+│   ├── Tool1.java
+│   └── Tool2.java
+├── util/                     # 工具类
+│   └── PropsBuilder.java
+└── config/                   # 配置相关
+    └── SkillConfig.java
+```
+
+### 11.2 错误处理
 
 ```java
 @Override
 public String executeTool(CommandSender sender, String toolName, JsonObject args) {
     try {
-        // 你的逻辑
-        return result;
-    } catch (NullPointerException e) {
-        return "Missing required parameter";
-    } catch (IllegalArgumentException e) {
-        return "Invalid parameter: " + e.getMessage();
+        // 参数验证
+        validateArgs(args);
+        
+        // 执行逻辑
+        return executeLogic(toolName, args);
+    } catch (MissingArgumentException e) {
+        return "Missing required parameter: " + e.getParameterName();
+    } catch (InvalidValueException e) {
+        return "Invalid value for parameter: " + e.getParameterName();
+    } catch (PermissionException e) {
+        return "Permission denied: " + e.getMessage();
     } catch (Exception e) {
-        return "Internal error: " + e.getMessage();
+        // 记录详细错误日志
+        mainPlugin.getLogger().severe("Error executing tool " + toolName + ": " + e.getMessage());
+        e.printStackTrace();
+        return "Internal error occurred. Please contact an administrator.";
     }
 }
 ```
 
-### 2. 输入验证
+### 11.3 性能优化
 
-验证所有输入参数：
+1. **异步操作**：耗时操作使用 Bukkit 的异步任务
+2. **缓存数据**：频繁查询的数据使用缓存
+3. **批量处理**：批量操作减少 API 调用次数
+4. **资源释放**：在 `onDisable()` 中释放所有资源
 
 ```java
-private String transferMoney(String from, String to, double amount) {
-    // 验证金额
-    if (amount <= 0) {
-        return "Amount must be positive";
-    }
+// 异步执行示例
+Bukkit.getScheduler().runTaskAsynchronously(mainPlugin, () -> {
+    // 耗时操作
+    String result = performHeavyOperation(args);
     
-    // 验证玩家
-    if (from == null || from.isEmpty()) {
-        return "Source player is required";
-    }
-    if (to == null || to.isEmpty()) {
-        return "Target player is required";
-    }
-    
-    // 执行逻辑
-    // ...
-}
-```
-
-### 3. 权限检查
-
-ArkOps-Ai 提供了两层权限控制机制：
-
-#### 3.1 工具级别权限声明
-
-通过实现 `getToolPermissionLevel()` 方法，为每个工具声明所需的最低权限级别：
-
-```java
-@Override
-public String getToolPermissionLevel(String toolName) {
-    switch (toolName) {
-        case "get_balance":
-            return "PLAYER";        // 所有玩家都可以使用
-        case "transfer_money":
-            return "PLAYER";        // 所有玩家都可以使用
-        case "set_balance":
-            return "ADMIN";         // 需要管理员权限
-        case "delete_account":
-            return "SUPER_ADMIN";   // 需要超级管理员权限
-        default:
-            return "ADMIN";         // 默认为管理员权限
-    }
-}
-```
-
-**权限级别说明：**
-- `PLAYER` (1): 所有玩家都可以使用
-- `ADMIN` (2): 需要管理员权限
-- `SUPER_ADMIN` (3): 需要超级管理员权限
-- `CONSOLE` (4): 仅控制台可用
-
-#### 3.2 权限过滤机制（工具列表过滤）
-
-系统通过 `SkillManager.filterToolsByPermission()` 自动根据用户的权限级别过滤可用工具：
-
-```
-用户请求 → buildTools(level) → filterToolsByPermission(level) → AI 只能看到有权限的工具
-```
-
-**过滤逻辑**：
-1. 获取调用者的权限级别数值（PLAYER=1, ADMIN=2, SUPER_ADMIN=3, CONSOLE=4）
-2. 遍历所有已注册的 Skill 工具
-3. 只返回 `调用者级别 >= 工具所需级别` 的工具
-
-这意味着：
-- PLAYER 用户看不到 ADMIN 级别的工具
-- QQ 用户使用自己的权限级别，而非 CONSOLE
-
-#### 3.3 执行时权限校验（AISessionContext 双重校验）
-
-即使 AI 在工具列表中被限制了可见工具，系统在**真正执行工具时**还会进行第二次校验。
-
-调用链路中 `AISessionContext` 全程携带用户身份：
-
-```java
-// SkillManager.executeTool(context) 内部
-public String executeTool(CommandSender sender, String toolName, JsonObject args, AISessionContext context) {
-    // context 为空 → 直接拒绝
-    if (context == null) {
-        return "错误: 缺少会话上下文，无法执行工具";
-    }
-
-    // 执行时再校验一次权限
-    if (!hasSufficientPermission(toolName, context.getPermissionLevel())) {
-        return "权限不足：你的权限等级为 " + context.getPermissionLevel()
-                + "，该操作需要 " + skill.getToolPermissionLevel(toolName) + " 权限。";
-    }
-
-    return skill.executeTool(sender, toolName, args);
-}
-```
-
-**Skill 开发者无需关心 AISessionContext**，只需要正确声明 `getToolPermissionLevel()` 即可。框架自动完成双重校验。
-
-#### 3.4 传统权限检查
-
-在执行操作前，仍然可以检查 Bukkit 权限：
-
-```java
-@Override
-public String executeTool(CommandSender sender, String toolName, JsonObject args) {
-    // 检查发送者是否是玩家
-    if (!(sender instanceof Player)) {
-        return "This command can only be used by players";
-    }
-    
-    Player player = (Player) sender;
-    
-    // 检查 Bukkit 权限
-    if (!player.hasPermission("myskill.use")) {
-        return "You don't have permission to use this skill";
-    }
-    
-    // 执行逻辑
-    // ...
-}
-```
-
-### 4. 性能优化
-
-避免阻塞操作：
-
-```java
-// 不好的做法：同步大量方块操作
-for (int i = 0; i < 100000; i++) {
-    block.setType(material);  // 会导致服务器卡顿
-}
-
-// 好的做法：限制操作大小
-if (blockCount > 10000) {
-    return "Operation too large";
-}
-```
-
-### 5. 日志记录
-
-记录重要操作：
-
-```java
-@Override
-public void onEnable(JavaPlugin mainPlugin) {
-    mainPlugin.getLogger().info("[MySkill] Skill enabled successfully");
-}
-
-private String transferMoney(String from, String to, double amount) {
-    Bukkit.getLogger().info("[MySkill] " + from + " transferred $" + amount + " to " + to);
-    return result;
-}
-```
-
-### 6. 配置支持
-
-支持配置文件：
-
-```java
-public class MySkill implements Skill {
-    private File configFile;
-    private FileConfiguration config;
-    private JavaPlugin mainPlugin;
-    
-    @Override
-    public void onEnable(JavaPlugin mainPlugin) {
-        this.mainPlugin = mainPlugin;
-        configFile = new File(mainPlugin.getDataFolder(), "skills/myskill.yml");
-        if (!configFile.exists()) {
-            // 创建默认配置
-        }
-        config = YamlConfiguration.loadConfiguration(configFile);
-    }
-    
-    private String getMaxTransferAmount() {
-        return config.getString("max_transfer_amount", "1000");
-    }
-}
-```
-
-### 7. 文档完善
-
-为你的 Skill 编写清晰的文档：
-
-```java
-/**
- * Economy Management Skill
- * 
- * Provides tools for managing player economies including:
- * - Balance checking
- * - Money transfers
- * - Deposits and withdrawals
- * 
- * @author Your Name
- * @version 1.0.0
- * @since 2024-01-01
- */
-public class EconomySkill implements Skill {
-    // ...
-}
-```
-
----
-
-## 常见问题
-
-### Q1: 如何调试 Skill？
-
-**A**: 使用 Bukkit 的日志系统：
-
-```java
-Bukkit.getLogger().info("[MySkill] Debug: " + message);
-```
-
-或者在控制台查看服务器日志。
-
-### Q2: Skill 可以使用外部库吗？
-
-**A**: 可以。将依赖添加到你的 pom.xml 中，使用 Maven Shade Plugin 打包：
-
-```xml
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-shade-plugin</artifactId>
-            <version>3.5.0</version>
-            <configuration>
-                <createDependencyReducedPom>false</createDependencyReducedPom>
-            </configuration>
-            <executions>
-                <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>shade</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
-    </plugins>
-</build>
-```
-
-### Q3: 如何与其他插件集成？
-
-**A**: 通过 Bukkit 的插件管理器获取其他插件实例：
-
-```java
-Plugin vaultPlugin = Bukkit.getPluginManager().getPlugin("Vault");
-if (vaultPlugin != null) {
-    // 使用 Vault API
-}
-```
-
-### Q4: Skill 可以存储数据吗？
-
-**A**: 可以。使用文件、数据库或内存存储：
-
-```java
-// 文件存储
-private File dataFile = new File("plugins/ArkOps-Ai/skills/mydata.yml");
-
-// 数据库存储（需要添加数据库依赖）
-// 内存存储
-private Map<String, Object> data = new ConcurrentHashMap<>();
-```
-
-### Q5: 如何处理异步操作？
-
-**A**: 使用 Bukkit 的调度器：
-
-```java
-Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-    // 异步执行耗时操作
-    String result = performHeavyOperation();
-    
-    // 回到主线程更新游戏状态
-    Bukkit.getScheduler().runTask(plugin, () -> {
-        // 主线程操作
+    // 返回结果（需要在主线程）
+    Bukkit.getScheduler().runTask(mainPlugin, () -> {
+        // 处理结果
     });
 });
 ```
 
-### Q6: Skill 可以注册命令吗？
+### 11.4 安全建议
 
-**A**: 可以。在 `onEnable(JavaPlugin mainPlugin)` 中注册：
+1. **始终验证输入**：不要信任 AI 传入的参数
+2. **权限校验**：正确实现 `getToolPermissionLevel()`
+3. **限制操作范围**：防止恶意操作（如超大区域填充）
+4. **日志记录**：记录所有重要操作
+5. **异常处理**：优雅处理错误，不暴露敏感信息
 
-```java
-@Override
-public void onEnable(JavaPlugin mainPlugin) {
-    PluginCommand command = mainPlugin.getCommand("myskill");
-    if (command != null) {
-        command.setExecutor(new MyCommandExecutor());
-    }
-}
-```
+### 11.5 测试建议
 
-### Q7: 如何测试 Skill？
-
-**A**: 
-1. 本地测试：使用本地 Minecraft 服务器
-2. 单元测试：使用 Mockito 模拟 Bukkit API
-3. 集成测试：在测试服务器上验证功能
-
-### Q8: Skill 可以监听事件吗？
-
-**A**: 可以。注册事件监听器时必须使用主插件实例：
-
-```java
-@Override
-public void onEnable(JavaPlugin mainPlugin) {
-    Bukkit.getPluginManager().registerEvents(new MyEventListener(), mainPlugin);
-}
-
-public class MyEventListener implements Listener {
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        // 处理玩家加入事件
-    }
-}
-```
-
-### Q9: 为什么会出现 AbstractMethodError？
-
-**A**: 这通常是因为 Skill 编译时使用的 `Skill` 接口版本与运行时不一致。
-
-**常见原因：**
-- Skill 使用旧版接口编译（`onEnable()` 无参数）
-- ArkOps-Ai 使用新版接口运行（`onEnable(JavaPlugin)` 有参数）
-
-**解决方法：**
-1. 确保 Skill 项目的 `pom.xml` 中引用了正确版本的 ArkOps-Ai
-2. 重新编译 Skill 项目
-3. 替换服务器中的 Skill jar 文件
-
-```xml
-<!-- 确保版本一致 -->
-<dependency>
-    <groupId>com.arkops</groupId>
-    <artifactId>ArkOps-Ai</artifactId>
-    <version>2.0.0</version>
-    <scope>provided</scope>
-</dependency>
-```
-
-### Q10: 如何管理 Skill 的依赖？
-
-**A**: 有两种方式：
-
-**方式一：打包进 Skill jar（推荐）**
-使用 maven-shade-plugin 将依赖打包进 Skill jar：
-
-```xml
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-shade-plugin</artifactId>
-            <version>3.5.1</version>
-            <executions>
-                <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>shade</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
-    </plugins>
-</build>
-```
-
-**方式二：放到服务器 libs 文件夹**
-将依赖 jar 放到服务器的 `libs` 文件夹中（不推荐，容易造成冲突）。
-
-### Q11: 如何获取 ArkOps-Ai 的依赖？
-
-**A**: 有以下几种方式：
-
-**方式一：本地安装（推荐用于开发）**
-```bash
-cd ArkOps-Ai-CN
-mvn clean install -DskipTests
-```
-
-**方式二：使用 systemPath（简单但不推荐用于发布）**
-```xml
-<dependency>
-    <groupId>com.arkops</groupId>
-    <artifactId>ArkOps-Ai</artifactId>
-    <version>2.0.0</version>
-    <scope>system</scope>
-    <systemPath>${project.basedir}/libs/ArkOps-Ai-2.0.0.jar</systemPath>
-</dependency>
-```
-
-**方式三：使用 JitPack（推荐用于开源项目）**
-1. 将 ArkOps-Ai 推送到 GitHub
-2. 在 [jitpack.io](https://jitpack.io) 添加仓库
-3. Skill 项目引用：
-```xml
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
-
-<dependencies>
-    <dependency>
-        <groupId>com.github.YourUsername</groupId>
-        <artifactId>ArkOps-Ai-CN</artifactId>
-        <version>2.0.0</version>
-        <scope>provided</scope>
-    </dependency>
-</dependencies>
-```
+1. **单元测试**：测试工具逻辑
+2. **集成测试**：测试与 ArkOps-Ai 的集成
+3. **权限测试**：验证各权限级别的访问控制
+4. **边界测试**：测试极端情况和错误输入
 
 ---
 
-## 版本兼容性
+## 12. 常见问题 (FAQ)
 
-### API 版本历史
+### Q1: Skill 和 Plugin 有什么区别？
+
+**A**: Skill 是 ArkOps-Ai 的内部组件，不是独立的 Bukkit Plugin。Skill 共享 ArkOps-Ai 的 Plugin 实例，生命周期由 SkillManager 管理。
+
+### Q2: 如何注册事件监听器？
+
+**A**: 使用 `mainPlugin` 注册：
+```java
+Bukkit.getPluginManager().registerEvents(this, mainPlugin);
+```
+
+### Q3: 如何记录日志？
+
+**A**: 使用 `mainPlugin.getLogger()`：
+```java
+mainPlugin.getLogger().info("My message");
+```
+
+### Q4: 如何获取配置文件路径？
+
+**A**: 使用 `mainPlugin.getDataFolder()`：
+```java
+File config = new File(mainPlugin.getDataFolder(), "skills/myconfig.yml");
+```
+
+### Q5: 如何检查 Skill 是否可用？
+
+**A**: 实现 `isAvailable()` 方法：
+```java
+@Override
+public boolean isAvailable() {
+    return Bukkit.getPluginManager().getPlugin("Vault") != null;
+}
+```
+
+### Q6: 工具调用失败怎么办？
+
+**A**: 返回错误信息字符串，AI 会向用户展示：
+```java
+return "Error: Player not found";
+```
+
+### Q7: 如何设置工具权限？
+
+**A**: 实现 `getToolPermissionLevel()` 方法：
+```java
+@Override
+public String getToolPermissionLevel(String toolName) {
+    return "ADMIN";  // 返回 PLAYER, ADMIN, SUPER_ADMIN
+}
+```
+
+### Q8: Skill 支持热重载吗？
+
+**A**: 支持。将新的 jar 放入 `plugins/ArkOps-Ai/skills/` 目录，使用 `/ops reload` 命令重载。
+
+---
+
+## 13. 版本兼容性
+
+### 13.1 API 版本历史
 
 | ArkOps-Ai 版本 | Skill 接口版本 | onEnable 签名 | 发布日期 |
 |----------------|----------------|---------------|----------|
 | 2.0.0+ | v2 | `onEnable(JavaPlugin mainPlugin)` | 2026-04-24 |
 | 1.x.x | v1 | `onEnable()` | 2026-04-23 |
 
-### 如何升级 Skill 到新版接口
+### 13.2 如何升级 Skill 到新版接口
 
 如果你的 Skill 是为旧版 ArkOps-Ai 开发的，需要修改 `onEnable` 方法：
 
@@ -2035,12 +1808,80 @@ public void onEnable(JavaPlugin mainPlugin) {
 }
 ```
 
-### 检查 Skill 兼容性
+### 13.3 检查 Skill 兼容性
 
 在编译 Skill 时，确保：
 1. `pom.xml` 中的 ArkOps-Ai 版本与服务器一致
 2. 实现了所有接口方法（IDE 会提示缺失的方法）
 3. 使用 `mvn clean package` 重新编译
+
+---
+
+## 14. API 参考
+
+### 14.1 Skill 接口
+
+```java
+public interface Skill {
+    String getId();
+    String getName();
+    String getDescription();
+    String getVersion();
+    String getAuthor();
+    List<JsonObject> getTools();
+    String executeTool(CommandSender sender, String toolName, JsonObject args);
+    String getSystemPrompt();
+    String getToolPermissionLevel(String toolName);  // 可选，默认 ADMIN
+    boolean isAvailable();
+    void onEnable(JavaPlugin mainPlugin);
+    void onDisable();
+}
+```
+
+### 14.2 SkillManager 类
+
+```java
+public class SkillManager {
+    // 注册 Skill
+    public boolean registerSkill(Skill skill);
+    
+    // 注销 Skill
+    public boolean unregisterSkill(String skillId);
+    
+    // 获取 Skill
+    public Skill getSkill(String skillId);
+    
+    // 获取所有 Skill
+    public List<Skill> getAllSkills();
+    
+    // 执行工具（携带权限校验）
+    public String executeTool(CommandSender sender, String toolName, 
+                             JsonObject args, AISessionContext context);
+    
+    // 根据权限过滤工具
+    public JsonArray filterToolsByPermission(String permissionLevel);
+    
+    // 检查权限
+    public boolean hasSufficientPermission(String toolName, String permissionLevel);
+}
+```
+
+### 14.3 AISessionContext 类
+
+```java
+public final class AISessionContext {
+    // 工厂方法
+    public static AISessionContext console();
+    public static AISessionContext player(String name, String level);
+    public static AISessionContext qqUser(String qqId, String name, String level);
+    
+    // Getter
+    public String getQqUserId();
+    public String getPermissionLevel();
+    public String getDisplayName();
+    public boolean isQQUser();
+}
+```
 
 ---
 
@@ -2053,13 +1894,14 @@ public void onEnable(JavaPlugin mainPlugin) {
 1. **实现 Skill 接口**：提供基本信息、工具定义、执行逻辑
 2. **定义工具**：使用 JSON 定义工具名称、描述和参数
 3. **编写系统提示**：告诉 AI 如何使用你的工具
-4. **注册 Skill**：通过 SkillManager 注册你的 Skill
-5. **测试验证**：在游戏中测试功能是否正常
+4. **设置权限**：为每个工具设置合适的权限级别
+5. **注册 Skill**：通过 SkillManager 注册你的 Skill
+6. **测试验证**：在游戏中测试功能是否正常
 
 ### 下一步
 
 - 查看示例代码：`src/main/java/com/arkops/skill/example/`
 - 参考接口定义：`src/main/java/com/arkops/skill/Skill.java`
-- 查看管理器实现：`src/main/java/com/arkops/skill/SkillManager.java`
+- 查看管理器实现：`src/main/java/com/arkops/manager/SkillManager.java`
 
-祝你开发愉快！如有问题，请参考本文档或联系开发团队。
+**祝你开发愉快！** 如有问题，请参考本文档或联系开发团队。
