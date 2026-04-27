@@ -233,7 +233,7 @@ ArkOps-Ai 已发布到 GitHub Packages，你可以在 Maven 项目中直接引�
 <dependencies>
     <dependency>
         <groupId>com.arkops</groupId>
-        <artifactId>ArkOps-Ai</artifactId>
+        <artifactId>arkops-ai</artifactId>
         <version>2.2.1</version>
         <scope>provided</scope>
     </dependency>

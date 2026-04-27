@@ -25,16 +25,31 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests -B
 
+      - name: List built artifacts
+        run: |
+          echo "Built artifacts:"
+          ls -la target/*.jar
+
       - name: Upload to GitHub Packages
         run: |
           echo "Uploading to GitHub Packages..."
+          
+          # 查找 JAR 文件
+          JAR_FILE=$(ls target/arkops-ai-*.jar 2>/dev/null | head -1)
+          if [ -z "$JAR_FILE" ]; then
+            echo "❌ JAR file not found!"
+            ls -la target/
+            exit 1
+          fi
+          
+          echo "Found JAR: $JAR_FILE"
           
           # 使用 GitHub API 上传
           curl -v -X PUT \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/java-archive" \
-            --data-binary @target/ArkOps-Ai-2.2.1.jar \
-            "https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai/com/arkops/ArkOps-Ai/2.2.1/ArkOps-Ai-2.2.1.jar" 2>&1 | tee upload.log
+            --data-binary @$JAR_FILE \
+            "https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai/com/arkops/arkops-ai/2.2.1/arkops-ai-2.2.1.jar" 2>&1 | tee upload.log
           
           # 检查上传结果
           if grep -q "201 Created\|200 OK" upload.log; then

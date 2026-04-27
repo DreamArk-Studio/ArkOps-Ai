@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.arkops</groupId>
-    <artifactId>ArkOps-Ai</artifactId>
+    <artifactId>arkops-ai</artifactId>
     <version>2.2.1</version>
     <packaging>jar</packaging>
 
-    <name>ArkOps-Ai</name>
+    <name>arkops-ai</name>
     <description>AI-powered server operations management plugin for PurpurMC</description>
     <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
 
