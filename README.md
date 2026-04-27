@@ -34,7 +34,7 @@
 
 ### 安装步骤
 
-1. **下载插件**：从 [Releases](https://github.com/DreamArk-Studio/ArkOps-Ai-CN/releases) 页面下载最新的 `ArkOps-Ai-2.0.0.jar`
+1. **下载插件**：从 [Releases](https://github.com/DreamArk-Studio/ArkOps-Ai/releases) 页面下载最新的 `ArkOps-Ai-2.0.0.jar`
 2. **部署插件**：将 jar 文件放入服务器的 `plugins` 文件夹
 3. **启动服务器**：启动或重启 Minecraft 服务器
 4. **配置插件**：编辑 `plugins/ArkOps-Ai/config.yml` 配置文件
@@ -199,8 +199,8 @@ ArkOps-Ai 支持开发者通过 Skill 系统扩展 AI 能力。
 ### 构建步骤
 
 ```bash
-git clone https://github.com/DreamArk-Studio/ArkOps-Ai-CN.git
-cd ArkOps-Ai-CN
+git clone https://github.com/DreamArk-Studio/ArkOps-Ai.git
+cd ArkOps-Ai
 mvn clean package -DskipTests
 ```
 
@@ -355,7 +355,7 @@ ArkOps-Ai 已发布到 GitHub Packages，你可以在 Maven 项目中直接引�
 
 ## 💬 支持与反馈
 
-- **问题反馈**：在 [GitHub Issues](https://github.com/DreamArk-Studio/ArkOps-Ai-CN/issues) 提交 Issue
+- **问题反馈**：在 [GitHub Issues](https://github.com/DreamArk-Studio/ArkOps-Ai/issues) 提交 Issue
 - **功能请求**：欢迎提交 Feature Request
 - **贡献代码**：欢迎提交 Pull Request
 
