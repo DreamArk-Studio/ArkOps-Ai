@@ -25,23 +25,23 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests -B
 
-      - name: Upload JAR to GitHub Packages
+      - name: Upload to GitHub Packages
         run: |
-          echo "Uploading JAR file to GitHub Packages..."
+          echo "Uploading to GitHub Packages..."
           
-          # 使用 curl 直接上传 JAR 文件
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
+          # 使用 GitHub API 上传
+          curl -v -X PUT \
+            -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/java-archive" \
-            --upload-file target/ArkOps-Ai-2.2.1.jar \
-            "https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai/com/arkops/ArkOps-Ai/2.2.1/ArkOps-Ai-2.2.1.jar")
+            --data-binary @target/ArkOps-Ai-2.2.1.jar \
+            "https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai/com/arkops/ArkOps-Ai/2.2.1/ArkOps-Ai-2.2.1.jar" 2>&1 | tee upload.log
           
-          echo "HTTP Status: $HTTP_STATUS"
-          
-          if [ "$HTTP_STATUS" = "201" ] || [ "$HTTP_STATUS" = "200" ]; then
-            echo "✅ JAR file uploaded successfully!"
+          # 检查上传结果
+          if grep -q "201 Created\|200 OK" upload.log; then
+            echo "✅ Upload successful!"
           else
-            echo "❌ Failed to upload JAR file. HTTP Status: $HTTP_STATUS"
+            echo "❌ Upload failed. Check upload.log for details."
+            cat upload.log
             exit 1
           fi
         env:
