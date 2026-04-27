@@ -157,7 +157,7 @@ Skill 是 ArkOps-Ai 的模块化扩展系统，允许开发者为 AI 添加自�
 <repositories>
     <repository>
         <id>github</id>
-        <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai-CN</url>
+        <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai</url>
     </repository>
 </repositories>
 ```

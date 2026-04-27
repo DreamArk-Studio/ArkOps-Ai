@@ -1,4 +1,4 @@
-name: Build and Publish
+name: Publish to GitHub Packages
 
 on:
   release:
@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-publish:
+  publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: write
 
     steps:
@@ -24,13 +24,6 @@ jobs:
 
       - name: Build with Maven
         run: mvn clean package -DskipTests
-
-      - name: Upload Jar to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: target/*.jar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Packages
         run: mvn deploy

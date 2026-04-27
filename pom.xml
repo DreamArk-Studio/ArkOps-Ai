@@ -11,7 +11,7 @@
 
     <name>ArkOps-Ai</name>
     <description>AI-powered server operations management plugin for PurpurMC</description>
-    <url>https://github.com/DreamArk-Studio/ArkOps-Ai-CN</url>
+    <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
 
     <licenses>
         <license>
@@ -29,16 +29,16 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/DreamArk-Studio/ArkOps-Ai-CN.git</connection>
-        <developerConnection>scm:git:ssh://github.com/DreamArk-Studio/ArkOps-Ai-CN.git</developerConnection>
-        <url>https://github.com/DreamArk-Studio/ArkOps-Ai-CN</url>
+        <connection>scm:git:git://github.com/DreamArk-Studio/ArkOps-Ai.git</connection>
+        <developerConnection>scm:git:ssh://github.com/DreamArk-Studio/ArkOps-Ai.git</developerConnection>
+        <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
     </scm>
 
     <distributionManagement>
         <repository>
             <id>github</id>
             <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai-CN</url>
+            <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai</url>
         </repository>
     </distributionManagement>
 

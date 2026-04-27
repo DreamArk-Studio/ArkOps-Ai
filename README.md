@@ -222,7 +222,7 @@ ArkOps-Ai 已发布到 GitHub Packages，你可以在 Maven 项目中直接引�
 <repositories>
     <repository>
         <id>github</id>
-        <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai-CN</url>
+        <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai</url>
     </repository>
 </repositories>
 ```
