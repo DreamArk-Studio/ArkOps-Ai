@@ -20,20 +20,71 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: maven
+          server-id: github
+          settings-path: ${{ github.workspace }}
 
       - name: Build with Maven
-        run: mvn clean package -DskipTests -B -V
+        run: mvn clean package -DskipTests -B
+
+      - name: Create deployment POM
+        run: |
+          cat > deploy-pom.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.arkops</groupId>
+            <artifactId>ArkOps-Ai</artifactId>
+            <version>2.2.0</version>
+            <packaging>jar</packaging>
+            <name>ArkOps-Ai</name>
+            <description>AI-powered server operations management plugin for PurpurMC</description>
+            <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
+            <licenses>
+              <license>
+                <name>MIT License</name>
+                <url>https://opensource.org/licenses/MIT</url>
+              </license>
+            </licenses>
+            <developers>
+              <developer>
+                <name>DreamArk Studio</name>
+                <organization>DreamArk Studio</organization>
+                <organizationUrl>https://github.com/DreamArk-Studio</organizationUrl>
+              </developer>
+            </developers>
+            <scm>
+              <connection>scm:git:https://github.com/DreamArk-Studio/ArkOps-Ai.git</connection>
+              <developerConnection>scm:git:https://github.com/DreamArk-Studio/ArkOps-Ai.git</developerConnection>
+              <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
+            </scm>
+            <dependencies>
+              <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>4.12.0</version>
+              </dependency>
+              <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>2.10.1</version>
+              </dependency>
+            </dependencies>
+          </project>
+          EOF
 
       - name: Publish to GitHub Packages
         run: |
           mvn deploy:deploy-file \
             -Dfile=target/ArkOps-Ai-2.2.0.jar \
+            -DpomFile=deploy-pom.xml \
             -DgroupId=com.arkops \
             -DartifactId=ArkOps-Ai \
             -Dversion=2.2.0 \
             -Dpackaging=jar \
             -DrepositoryId=github \
-            -Durl=https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai
+            -Durl=https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai \
+            -B -s $GITHUB_WORKSPACE/settings.xml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
