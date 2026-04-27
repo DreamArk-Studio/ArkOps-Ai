@@ -46,7 +46,7 @@ jobs:
           
           # 使用 GitHub API 上传，直接获取 HTTP 状态码
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Content-Type: application/java-archive" \
             --data-binary @$JAR_FILE \
             "https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai/com/arkops/arkops-ai/2.2.1/arkops-ai-2.2.1.jar")
@@ -64,6 +64,8 @@ jobs:
             echo "❌ Upload failed. HTTP Status: $HTTP_STATUS"
             exit 1
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload JAR to Release
         uses: actions/upload-release-asset@v1
