@@ -20,71 +20,29 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          server-id: github
-          settings-path: ${{ github.workspace }}
+          cache: maven
 
       - name: Build with Maven
         run: mvn clean package -DskipTests -B
 
-      - name: Create deployment POM
+      - name: Upload JAR to GitHub Packages
         run: |
-          cat > deploy-pom.xml << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <project xmlns="http://maven.apache.org/POM/4.0.0"
-                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>com.arkops</groupId>
-            <artifactId>ArkOps-Ai</artifactId>
-            <version>2.2.0</version>
-            <packaging>jar</packaging>
-            <name>ArkOps-Ai</name>
-            <description>AI-powered server operations management plugin for PurpurMC</description>
-            <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
-            <licenses>
-              <license>
-                <name>MIT License</name>
-                <url>https://opensource.org/licenses/MIT</url>
-              </license>
-            </licenses>
-            <developers>
-              <developer>
-                <name>DreamArk Studio</name>
-                <organization>DreamArk Studio</organization>
-                <organizationUrl>https://github.com/DreamArk-Studio</organizationUrl>
-              </developer>
-            </developers>
-            <scm>
-              <connection>scm:git:https://github.com/DreamArk-Studio/ArkOps-Ai.git</connection>
-              <developerConnection>scm:git:https://github.com/DreamArk-Studio/ArkOps-Ai.git</developerConnection>
-              <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
-            </scm>
-            <dependencies>
-              <dependency>
-                <groupId>com.squareup.okhttp3</groupId>
-                <artifactId>okhttp</artifactId>
-                <version>4.12.0</version>
-              </dependency>
-              <dependency>
-                <groupId>com.google.code.gson</groupId>
-                <artifactId>gson</artifactId>
-                <version>2.10.1</version>
-              </dependency>
-            </dependencies>
-          </project>
-          EOF
-
-      - name: Publish to GitHub Packages
-        run: |
-          mvn deploy:deploy-file \
-            -Dfile=target/ArkOps-Ai-2.2.0.jar \
-            -DpomFile=deploy-pom.xml \
-            -DgroupId=com.arkops \
-            -DartifactId=ArkOps-Ai \
-            -Dversion=2.2.0 \
-            -Dpackaging=jar \
-            -DrepositoryId=github \
-            -Durl=https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai \
-            -B -s $GITHUB_WORKSPACE/settings.xml
+          echo "Uploading JAR file to GitHub Packages..."
+          
+          # 使用 curl 直接上传 JAR 文件
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/java-archive" \
+            --upload-file target/ArkOps-Ai-2.2.0.jar \
+            "https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai/com/arkops/ArkOps-Ai/2.2.0/ArkOps-Ai-2.2.0.jar")
+          
+          echo "HTTP Status: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" = "201" ] || [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ JAR file uploaded successfully!"
+          else
+            echo "❌ Failed to upload JAR file. HTTP Status: $HTTP_STATUS"
+            exit 1
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
