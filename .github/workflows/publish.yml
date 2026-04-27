@@ -23,9 +23,17 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        run: mvn clean package -DskipTests
+        run: mvn clean package -DskipTests -B -V
 
       - name: Publish to GitHub Packages
-        run: mvn deploy
+        run: |
+          mvn deploy:deploy-file \
+            -Dfile=target/ArkOps-Ai-2.2.0.jar \
+            -DgroupId=com.arkops \
+            -DartifactId=ArkOps-Ai \
+            -Dversion=2.2.0 \
+            -Dpackaging=jar \
+            -DrepositoryId=github \
+            -Durl=https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

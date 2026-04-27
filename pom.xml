@@ -13,31 +13,9 @@
     <description>AI-powered server operations management plugin for PurpurMC</description>
     <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
 
-    <licenses>
-        <license>
-            <name>MIT License</name>
-            <url>https://opensource.org/licenses/MIT</url>
-        </license>
-    </licenses>
-
-    <developers>
-        <developer>
-            <name>DreamArk Studio</name>
-            <organization>DreamArk Studio</organization>
-            <organizationUrl>https://github.com/DreamArk-Studio</organizationUrl>
-        </developer>
-    </developers>
-
-    <scm>
-        <connection>scm:git:git://github.com/DreamArk-Studio/ArkOps-Ai.git</connection>
-        <developerConnection>scm:git:ssh://github.com/DreamArk-Studio/ArkOps-Ai.git</developerConnection>
-        <url>https://github.com/DreamArk-Studio/ArkOps-Ai</url>
-    </scm>
-
     <distributionManagement>
         <repository>
             <id>github</id>
-            <name>GitHub Packages</name>
             <url>https://maven.pkg.github.com/DreamArk-Studio/ArkOps-Ai</url>
         </repository>
     </distributionManagement>
@@ -88,6 +66,14 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <skip>false</skip>
+                </configuration>
+            </plugin>
         </plugins>
         <resources>
             <resource>
@@ -98,10 +84,6 @@
     </build>
 
     <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo.maven.apache.org/maven2</url>
-        </repository>
         <repository>
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
@@ -130,4 +112,24 @@
             <version>2.10.1</version>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <profile>
+            <id>github-packages</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.purpurmc.purpur</groupId>
+                    <artifactId>purpur-api</artifactId>
+                    <version>1.21.11-R0.1-SNAPSHOT</version>
+                    <scope>provided</scope>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>*</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
