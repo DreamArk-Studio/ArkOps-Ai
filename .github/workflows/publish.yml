@@ -54,8 +54,12 @@ jobs:
           echo "HTTP Status: $HTTP_STATUS"
           
           # 检查上传结果
-          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-            echo "✅ Upload to GitHub Packages successful!"
+          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ] || [ "$HTTP_STATUS" = "409" ]; then
+            if [ "$HTTP_STATUS" = "409" ]; then
+              echo "⚠️ Package already exists (skipped)"
+            else
+              echo "✅ Upload to GitHub Packages successful!"
+            fi
           else
             echo "❌ Upload failed. HTTP Status: $HTTP_STATUS"
             exit 1
