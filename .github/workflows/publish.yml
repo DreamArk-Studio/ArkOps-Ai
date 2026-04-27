@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -34,17 +34,15 @@ jobs:
         run: |
           echo "Uploading to GitHub Packages..."
           
-          # 查找 JAR 文件
           JAR_FILE=$(ls target/arkops-ai-*.jar 2>/dev/null | head -1)
           if [ -z "$JAR_FILE" ]; then
-            echo "❌ JAR file not found!"
+            echo "JAR file not found!"
             ls -la target/
             exit 1
           fi
           
           echo "Found JAR: $JAR_FILE"
           
-          # 使用 GitHub API 上传，直接获取 HTTP 状态码
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Content-Type: application/java-archive" \
@@ -53,26 +51,46 @@ jobs:
           
           echo "HTTP Status: $HTTP_STATUS"
           
-          # 检查上传结果
           if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ] || [ "$HTTP_STATUS" = "409" ]; then
             if [ "$HTTP_STATUS" = "409" ]; then
-              echo "⚠️ Package already exists (skipped)"
+              echo "Package already exists (skipped)"
             else
-              echo "✅ Upload to GitHub Packages successful!"
+              echo "Upload to GitHub Packages successful!"
             fi
           else
-            echo "❌ Upload failed. HTTP Status: $HTTP_STATUS"
+            echo "Upload failed. HTTP Status: $HTTP_STATUS"
             exit 1
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload JAR to Release
+      - name: Get Release Info
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          RELEASE_ID=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/DreamArk-Studio/ArkOps-Ai/releases/tags/v2.2.1" | jq -r '.id')
+          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload JAR to Release (Release Trigger)
+        if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: target/arkops-ai-${{ github.event.release.tag_name }}.jar
           asset_name: arkops-ai-${{ github.event.release.tag_name }}.jar
           asset_content_type: application/java-archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload JAR to Release (Manual Trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/java-archive" \
+            --data-binary @target/arkops-ai-2.2.1.jar \
+            "https://uploads.github.com/repos/DreamArk-Studio/ArkOps-Ai/releases/${{ env.RELEASE_ID }}/assets?name=arkops-ai-2.2.1.jar"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
