@@ -170,7 +170,7 @@ Skill 是 ArkOps-Ai 的模块化扩展系统，允许开发者为 AI 添加自�
     <dependency>
         <groupId>com.arkops</groupId>
         <artifactId>ArkOps-Ai</artifactId>
-        <version>2.2.0</version>
+        <version>2.2.1</version>
         <scope>provided</scope>
     </dependency>
     
