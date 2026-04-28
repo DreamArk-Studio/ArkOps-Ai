@@ -440,6 +440,47 @@ public class SkillManager {
     }
 
     /**
+     * 自定义 ClassLoader，用于隔离 Skill 的类加载
+     * 这样可以支持热重载时重新加载类
+     */
+    private static class IsolatedClassLoader extends java.net.URLClassLoader {
+        static {
+            // 注册为并行可加载的 ClassLoader
+            registerAsParallelCapable();
+        }
+
+        public IsolatedClassLoader(java.net.URL[] urls, ClassLoader parent) {
+            super(urls, parent);
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            // 检查类是否已经加载
+            Class<?> loadedClass = findLoadedClass(name);
+            if (loadedClass == null) {
+                // 如果是 Skill 接口或 Bukkit API，使用父 ClassLoader
+                if (name.startsWith("com.arkops.skill.") || 
+                    name.startsWith("org.bukkit.") || 
+                    name.startsWith("com.google.gson.")) {
+                    return super.loadClass(name, resolve);
+                }
+                
+                try {
+                    loadedClass = findClass(name);
+                } catch (ClassNotFoundException e) {
+                    return super.loadClass(name, resolve);
+                }
+            }
+            
+            if (resolve) {
+                resolveClass(loadedClass);
+            }
+            
+            return loadedClass;
+        }
+    }
+
+    /**
      * 热重载指定 Skill
      * 
      * @param skillId Skill ID
@@ -461,18 +502,112 @@ public class SkillManager {
             return "错误: Skill 文件不存在: " + filePath;
         }
 
+        // 保存文件路径，因为 unregisterSkill 会删除它
+        String savedFilePath = filePath;
+
         try {
+            // 先注销旧 Skill
             unregisterSkill(skillId);
             plugin.getLogger().info("正在热重载 Skill: " + skillId + " 从 " + file.getName());
 
+            // 使用自定义的 ClassLoader 来隔离类加载
             java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
-            try (java.net.URLClassLoader classLoader = new java.net.URLClassLoader(
+            IsolatedClassLoader classLoader = new IsolatedClassLoader(
                     urls,
-                    this.getClass().getClassLoader())) {
+                    this.getClass().getClassLoader());
+
+            java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file);
+            java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
+
+            while (entries.hasMoreElements()) {
+                java.util.jar.JarEntry entry = entries.nextElement();
+                String entryName = entry.getName();
+
+                if (entryName.endsWith(".class")) {
+                    String className = entryName.replace('/', '.').replace('\\', '.').substring(0, entryName.length() - 6);
+
+                    try {
+                        Class<?> clazz = classLoader.loadClass(className);
+
+                        if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
+                            Skill newSkill = (Skill) clazz.getDeclaredConstructor().newInstance();
+
+                            if (registerSkill(newSkill)) {
+                                skillToFileMap.put(newSkill.getId(), savedFilePath);
+                                jarFile.close();
+                                classLoader.close();
+                                return "Skill '" + newSkill.getName() + "' v" + newSkill.getVersion() + " 已热重载成功";
+                            }
+                        }
+                    } catch (ClassNotFoundException | InstantiationException |
+                           IllegalAccessException | java.lang.reflect.InvocationTargetException |
+                           NoSuchMethodException e) {
+                        // 忽略非 Skill 类
+                    }
+                }
+            }
+
+            jarFile.close();
+            classLoader.close();
+
+            // 如果重新注册失败，尝试恢复文件路径映射
+            skillToFileMap.put(skillId, savedFilePath);
+            return "错误: 未能在文件中找到 Skill '" + skillId + "' 的类";
+        } catch (Exception e) {
+            plugin.getLogger().severe("热重载 Skill 失败: " + skillId + " - " + e.getMessage());
+            e.printStackTrace();
+            // 恢复文件路径映射
+            skillToFileMap.put(skillId, savedFilePath);
+            return "热重载失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 热加载所有新放入的 Skill 文件
+     * 扫描 skills 文件夹，加载之前未被加载过的 Skill jar 文件
+     * 
+     * @param skillsFolder Skill 文件夹路径
+     * @return 操作结果
+     */
+    public String loadNewSkills(String skillsFolder) {
+        File folder = new File(skillsFolder);
+        if (!folder.exists() || !folder.isDirectory()) {
+            return "错误: Skill 文件夹不存在: " + skillsFolder;
+        }
+
+        File[] files = folder.listFiles((dir, name) -> name.endsWith(".jar"));
+        if (files == null || files.length == 0) {
+            return "Skill 文件夹中没有 jar 文件";
+        }
+
+        // 获取已加载的文件路径集合
+        java.util.Set<String> loadedFiles = new java.util.HashSet<>(skillToFileMap.values());
+
+        int loadedCount = 0;
+        int skippedCount = 0;
+        StringBuilder result = new StringBuilder();
+
+        for (File file : files) {
+            String absolutePath = file.getAbsolutePath();
+            
+            // 跳过已经加载过的文件
+            if (loadedFiles.contains(absolutePath)) {
+                skippedCount++;
+                continue;
+            }
+
+            try {
+                plugin.getLogger().info("发现新 Skill 文件: " + file.getName());
+
+                java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
+                IsolatedClassLoader classLoader = new IsolatedClassLoader(
+                        urls,
+                        this.getClass().getClassLoader());
 
                 java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file);
                 java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
 
+                boolean found = false;
                 while (entries.hasMoreElements()) {
                     java.util.jar.JarEntry entry = entries.nextElement();
                     String entryName = entry.getName();
@@ -484,30 +619,39 @@ public class SkillManager {
                             Class<?> clazz = classLoader.loadClass(className);
 
                             if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
-                                Skill newSkill = (Skill) clazz.getDeclaredConstructor().newInstance();
+                                Skill skill = (Skill) clazz.getDeclaredConstructor().newInstance();
 
-                                if (registerSkill(newSkill)) {
-                                    skillToFileMap.put(newSkill.getId(), file.getAbsolutePath());
-                                    jarFile.close();
-                                    return "Skill '" + newSkill.getName() + "' v" + newSkill.getVersion() + " 已热重载成功";
+                                if (registerSkill(skill)) {
+                                    skillToFileMap.put(skill.getId(), absolutePath);
+                                    loadedCount++;
+                                    result.append("- 成功加载: ").append(skill.getName()).append(" v").append(skill.getVersion()).append("\n");
+                                    found = true;
+                                    break;
                                 }
                             }
                         } catch (ClassNotFoundException | InstantiationException |
                                IllegalAccessException | java.lang.reflect.InvocationTargetException |
                                NoSuchMethodException e) {
+                            // 忽略非 Skill 类
                         }
                     }
                 }
 
-                jarFile.close();
+                if (!found) {
+                    classLoader.close();
+                    result.append("- 跳过: ").append(file.getName()).append(" (未找到 Skill 类)\n");
+                }
+            } catch (Exception e) {
+                plugin.getLogger().severe("加载 Skill 失败: " + file.getName() + " - " + e.getMessage());
+                result.append("- 失败: ").append(file.getName()).append(" (").append(e.getMessage()).append(")\n");
             }
-
-            return "错误: 未能在文件中找到 Skill '" + skillId + "' 的类";
-        } catch (Exception e) {
-            plugin.getLogger().severe("热重载 Skill 失败: " + skillId + " - " + e.getMessage());
-            e.printStackTrace();
-            return "热重载失败: " + e.getMessage();
         }
+
+        if (loadedCount == 0 && skippedCount == files.length) {
+            return "没有新的 Skill 文件需要加载（所有 " + skippedCount + " 个文件已加载）";
+        }
+
+        return "加载完成: 新加载 " + loadedCount + " 个, 跳过 " + skippedCount + " 个\n" + result.toString().trim();
     }
 
     /**

@@ -11,6 +11,7 @@ import com.google.gson.JsonObject;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -280,8 +281,6 @@ public class OpsCommandHandler {
                     if (iteration == 0) {
                         if (broadcast) {
                             plugin.getServer().broadcastMessage("§e§l[ArkOps-Ai] §eAI §7正在处理...");
-                        } else {
-                            sender.sendMessage(lang.getMessage("agent.start"));
                         }
                     }
 
@@ -305,9 +304,6 @@ public class OpsCommandHandler {
                         if (!toolName.equals("check_permission")) {
                             if (broadcast) {
                                 plugin.getServer().broadcastMessage("§e§l[ArkOps-Ai] §7执行: " + toolName);
-                            } else {
-                                sender.sendMessage(lang.getMessage("agent.step", iteration + 1, i + 1, toolName));
-                                sender.sendMessage(lang.getMessage("agent.result", result));
                             }
                         }
 
@@ -331,12 +327,10 @@ public class OpsCommandHandler {
                         }
                         plugin.getArkOpsLogger().logAction(playerName, lang.getMessage("ai.qa_log", originalCommand), "Success [Broadcast]");
                     } else {
+                        sender.sendMessage(lang.getMessage("ai.response", content));
                         if (iteration == 0) {
-                            sender.sendMessage(lang.getMessage("ai.response", content));
                             plugin.getArkOpsLogger().logAction(playerName, lang.getMessage("ai.qa_log", originalCommand), "Success");
                         } else {
-                            sender.sendMessage(lang.getMessage("agent.complete"));
-                            sender.sendMessage(lang.getMessage("ai.response", content));
                             plugin.getArkOpsLogger().logAction(playerName, lang.getMessage("ai.agent_log", originalCommand), "Success");
                         }
                     }
@@ -460,6 +454,10 @@ public class OpsCommandHandler {
                 case "reload_all_skills":
                     requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
                     return skillManager.reloadAllSkills();
+                case "load_new_skills":
+                    requirePermission(callerLevel, PermissionManager.PermissionLevel.SUPER_ADMIN, toolName);
+                    String skillsFolder = plugin.getDataFolder().getAbsolutePath() + File.separator + "skills";
+                    return skillManager.loadNewSkills(skillsFolder);
                 default:
                     // 检查是否是 Skill 提供的工具（带权限检查）
                     if (skillManager != null && skillManager.hasTool(toolName)) {
@@ -677,6 +675,7 @@ public class OpsCommandHandler {
         prompt.append("- reload_config: Hot-reload ArkOps-Ai config files (SUPER_ADMIN)\n");
         prompt.append("- reload_skill: Hot-reload a specific Skill (SUPER_ADMIN)\n");
         prompt.append("- reload_all_skills: Hot-reload all Skills (SUPER_ADMIN)\n");
+        prompt.append("- load_new_skills: Scan and load new Skill jar files from the skills folder (SUPER_ADMIN)\n");
         prompt.append("- get_online_players: Get online player list\n\n");
 
         // 添加 Skill 的系统提示
@@ -763,6 +762,7 @@ public class OpsCommandHandler {
         tools.add(createTool("reload_skill", "Hot-reload a specific Skill from its jar file",
                 createPropsBuilder().add("skill_id", "string", "Skill ID to reload", true).build()));
         tools.add(createTool("reload_all_skills", "Hot-reload all Skills loaded from the skills folder", createPropsBuilder().build()));
+        tools.add(createTool("load_new_skills", "Scan the skills folder and load any new Skill jar files that haven't been loaded yet", createPropsBuilder().build()));
 
         // 添加 Skill 提供的工具（根据权限级别过滤）
         if (skillManager != null) {
