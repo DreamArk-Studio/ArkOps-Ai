@@ -390,31 +390,24 @@ public class SkillManager {
                 java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
                 try (java.net.URLClassLoader classLoader = new java.net.URLClassLoader(
                         urls,
-                        this.getClass().getClassLoader())) {
+                        this.getClass().getClassLoader());
+                     java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file)) {
 
-                    // 扫描 jar 中的所有类
-                    java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file);
                     java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
 
                     while (entries.hasMoreElements()) {
                         java.util.jar.JarEntry entry = entries.nextElement();
                         String entryName = entry.getName();
 
-                        // 只处理 .class 文件
                         if (entryName.endsWith(".class")) {
-                            // 将路径转换为类名
                             String className = entryName.replace('/', '.').replace('\\', '.').substring(0, entryName.length() - 6);
 
                             try {
-                                // 加载类
                                 Class<?> clazz = classLoader.loadClass(className);
 
-                                // 检查是否实现了 Skill 接口
                                 if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
-                                    // 实例化 Skill
                                     Skill skill = (Skill) clazz.getDeclaredConstructor().newInstance();
 
-                                    // 注册 Skill
                                     if (registerSkill(skill)) {
                                         skillToFileMap.put(skill.getId(), file.getAbsolutePath());
                                         loadedCount++;
@@ -423,12 +416,10 @@ public class SkillManager {
                             } catch (ClassNotFoundException | InstantiationException | 
                                    IllegalAccessException | java.lang.reflect.InvocationTargetException | 
                                    NoSuchMethodException e) {
-                                // 忽略无法加载的类
+                                // ignore non-Skill classes
                             }
                         }
                     }
-
-                    jarFile.close();
                 }
             } catch (Exception e) {
                 plugin.getLogger().severe("加载 Skill 失败: " + file.getName() + " - " + e.getMessage());
@@ -506,51 +497,44 @@ public class SkillManager {
         String savedFilePath = filePath;
 
         try {
-            // 先注销旧 Skill
             unregisterSkill(skillId);
             plugin.getLogger().info("正在热重载 Skill: " + skillId + " 从 " + file.getName());
 
-            // 使用自定义的 ClassLoader 来隔离类加载
             java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
-            IsolatedClassLoader classLoader = new IsolatedClassLoader(
+            try (IsolatedClassLoader classLoader = new IsolatedClassLoader(
                     urls,
                     this.getClass().getClassLoader());
+                 java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file)) {
 
-            java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file);
-            java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
+                java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
 
-            while (entries.hasMoreElements()) {
-                java.util.jar.JarEntry entry = entries.nextElement();
-                String entryName = entry.getName();
+                while (entries.hasMoreElements()) {
+                    java.util.jar.JarEntry entry = entries.nextElement();
+                    String entryName = entry.getName();
 
-                if (entryName.endsWith(".class")) {
-                    String className = entryName.replace('/', '.').replace('\\', '.').substring(0, entryName.length() - 6);
+                    if (entryName.endsWith(".class")) {
+                        String className = entryName.replace('/', '.').replace('\\', '.').substring(0, entryName.length() - 6);
 
-                    try {
-                        Class<?> clazz = classLoader.loadClass(className);
+                        try {
+                            Class<?> clazz = classLoader.loadClass(className);
 
-                        if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
-                            Skill newSkill = (Skill) clazz.getDeclaredConstructor().newInstance();
+                            if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
+                                Skill newSkill = (Skill) clazz.getDeclaredConstructor().newInstance();
 
-                            if (registerSkill(newSkill)) {
-                                skillToFileMap.put(newSkill.getId(), savedFilePath);
-                                jarFile.close();
-                                classLoader.close();
-                                return "Skill '" + newSkill.getName() + "' v" + newSkill.getVersion() + " 已热重载成功";
+                                if (registerSkill(newSkill)) {
+                                    skillToFileMap.put(newSkill.getId(), savedFilePath);
+                                    return "Skill '" + newSkill.getName() + "' v" + newSkill.getVersion() + " 已热重载成功";
+                                }
                             }
+                        } catch (ClassNotFoundException | InstantiationException |
+                               IllegalAccessException | java.lang.reflect.InvocationTargetException |
+                               NoSuchMethodException e) {
+                            // ignore non-Skill classes
                         }
-                    } catch (ClassNotFoundException | InstantiationException |
-                           IllegalAccessException | java.lang.reflect.InvocationTargetException |
-                           NoSuchMethodException e) {
-                        // 忽略非 Skill 类
                     }
                 }
             }
 
-            jarFile.close();
-            classLoader.close();
-
-            // 如果重新注册失败，尝试恢复文件路径映射
             skillToFileMap.put(skillId, savedFilePath);
             return "错误: 未能在文件中找到 Skill '" + skillId + "' 的类";
         } catch (Exception e) {
@@ -600,45 +584,45 @@ public class SkillManager {
                 plugin.getLogger().info("发现新 Skill 文件: " + file.getName());
 
                 java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
-                IsolatedClassLoader classLoader = new IsolatedClassLoader(
+                boolean found = false;
+                try (IsolatedClassLoader classLoader = new IsolatedClassLoader(
                         urls,
                         this.getClass().getClassLoader());
+                     java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file)) {
 
-                java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file);
-                java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
+                    java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
 
-                boolean found = false;
-                while (entries.hasMoreElements()) {
-                    java.util.jar.JarEntry entry = entries.nextElement();
-                    String entryName = entry.getName();
+                    while (entries.hasMoreElements()) {
+                        java.util.jar.JarEntry entry = entries.nextElement();
+                        String entryName = entry.getName();
 
-                    if (entryName.endsWith(".class")) {
-                        String className = entryName.replace('/', '.').replace('\\', '.').substring(0, entryName.length() - 6);
+                        if (entryName.endsWith(".class")) {
+                            String className = entryName.replace('/', '.').replace('\\', '.').substring(0, entryName.length() - 6);
 
-                        try {
-                            Class<?> clazz = classLoader.loadClass(className);
+                            try {
+                                Class<?> clazz = classLoader.loadClass(className);
 
-                            if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
-                                Skill skill = (Skill) clazz.getDeclaredConstructor().newInstance();
+                                if (Skill.class.isAssignableFrom(clazz) && !clazz.isInterface() && !clazz.isEnum()) {
+                                    Skill skill = (Skill) clazz.getDeclaredConstructor().newInstance();
 
-                                if (registerSkill(skill)) {
-                                    skillToFileMap.put(skill.getId(), absolutePath);
-                                    loadedCount++;
-                                    result.append("- 成功加载: ").append(skill.getName()).append(" v").append(skill.getVersion()).append("\n");
-                                    found = true;
-                                    break;
+                                    if (registerSkill(skill)) {
+                                        skillToFileMap.put(skill.getId(), absolutePath);
+                                        loadedCount++;
+                                        result.append("- 成功加载: ").append(skill.getName()).append(" v").append(skill.getVersion()).append("\n");
+                                        found = true;
+                                        break;
+                                    }
                                 }
+                            } catch (ClassNotFoundException | InstantiationException |
+                                   IllegalAccessException | java.lang.reflect.InvocationTargetException |
+                                   NoSuchMethodException e) {
+                                // ignore non-Skill classes
                             }
-                        } catch (ClassNotFoundException | InstantiationException |
-                               IllegalAccessException | java.lang.reflect.InvocationTargetException |
-                               NoSuchMethodException e) {
-                            // 忽略非 Skill 类
                         }
                     }
                 }
 
                 if (!found) {
-                    classLoader.close();
                     result.append("- 跳过: ").append(file.getName()).append(" (未找到 Skill 类)\n");
                 }
             } catch (Exception e) {

@@ -10,6 +10,19 @@ command:
   ai_analyzing: "§eArkOpsAI 正在分析请求..."
   ai_failed: "§cArkOpsAI 请求失败: {0}"
   max_iterations: "§cArkOpsAI 已达到最大迭代次数，停止执行。"
+  help_header: "§e§l===== ArkOps-Ai 帮助 ====="
+  help_usage: "§7使用 /ops <操作> 来管理服务器"
+  help_examples: "§7示例:"
+  help_example_restart: "§7  /ops 重启服务器"
+  help_example_stop: "§7  /ops 关闭服务器"
+  help_example_reload: "§7  /ops 热重载 Essentials"
+  help_example_plugins: "§7  /ops 列出插件"
+  help_example_time: "§7  /ops 设置游戏时间为夜晚"
+  help_example_gamemode: "§7  /ops 设置我的游戏模式为创造"
+  help_example_command: "§7  /ops 执行命令 give @p diamond 64"
+  help_example_status: "§7  /ops 服务器状态"
+  help_example_player: "§7  /ops 玩家信息 <玩家名>"
+  help_permissions: "§7权限等级: §c禁用 §7| §b玩家 §7| §a管理员 §7| §d超级管理员"
 
 # 权限消息
 permission:

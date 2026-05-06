@@ -8,6 +8,8 @@ import okhttp3.*;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class OpenAiManager {
@@ -17,17 +19,28 @@ public class OpenAiManager {
     private final String apiKey;
     private final String model;
     private final String apiUrl;
+    private final int maxTokens;
+    private final double temperature;
+    private final ExecutorService executorService;
 
     public OpenAiManager(ArkOpsAi plugin) {
         this.plugin = plugin;
         this.apiKey = plugin.getConfig().getString("openai.api-key", "");
         this.model = plugin.getConfig().getString("openai.model", "qwen3.5-plus");
         this.apiUrl = plugin.getConfig().getString("openai.api-url", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
+        this.maxTokens = plugin.getConfig().getInt("openai.max-tokens", 2000);
+        this.temperature = plugin.getConfig().getDouble("openai.temperature", 1.0);
+        int timeout = plugin.getConfig().getInt("openai.timeout", 60);
         this.client = new OkHttpClient.Builder()
-                .connectTimeout(60, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
+                .connectTimeout(timeout, TimeUnit.SECONDS)
+                .readTimeout(timeout * 2, TimeUnit.SECONDS)
+                .writeTimeout(timeout, TimeUnit.SECONDS)
                 .build();
+        this.executorService = Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r, "ArkOpsAI-Async");
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     public CompletableFuture<String> sendRequest(String userMessage, String systemPrompt) {
@@ -48,8 +61,8 @@ public class OpenAiManager {
                 JsonObject requestBody = new JsonObject();
                 requestBody.addProperty("model", model);
                 requestBody.add("messages", messages);
-                requestBody.addProperty("max_tokens", 2000);
-                requestBody.addProperty("temperature", 0.7);
+                requestBody.addProperty("max_tokens", maxTokens);
+                requestBody.addProperty("temperature", temperature);
 
                 RequestBody body = RequestBody.create(
                         requestBody.toString(),
@@ -84,7 +97,7 @@ public class OpenAiManager {
                 plugin.getLogger().severe("处理 ArkOpsAI 响应时出错: " + e.getMessage());
                 return "处理响应时发生错误。";
             }
-        });
+        }, executorService);
     }
 
     public CompletableFuture<JsonObject> sendRequestWithTools(String userMessage, String systemPrompt, JsonArray tools) {
@@ -106,8 +119,8 @@ public class OpenAiManager {
                 requestBody.addProperty("model", model);
                 requestBody.add("messages", messages);
                 requestBody.add("tools", tools);
-                requestBody.addProperty("max_tokens", 2000);
-                requestBody.addProperty("temperature", 0.3);
+                requestBody.addProperty("max_tokens", maxTokens);
+                requestBody.addProperty("temperature", temperature);
 
                 RequestBody body = RequestBody.create(
                         requestBody.toString(),
@@ -144,7 +157,7 @@ public class OpenAiManager {
                 error.addProperty("error", "处理错误: " + e.getMessage());
                 return error;
             }
-        });
+        }, executorService);
     }
 
     public JsonObject sendRequestWithMessagesSync(JsonArray messages, JsonArray tools) {
@@ -153,8 +166,8 @@ public class OpenAiManager {
             requestBody.addProperty("model", model);
             requestBody.add("messages", messages);
             requestBody.add("tools", tools);
-            requestBody.addProperty("max_tokens", 2000);
-            requestBody.addProperty("temperature", 0.3);
+            requestBody.addProperty("max_tokens", maxTokens);
+            requestBody.addProperty("temperature", temperature);
 
             RequestBody body = RequestBody.create(
                     requestBody.toString(),
@@ -200,8 +213,8 @@ public class OpenAiManager {
                 requestBody.addProperty("model", model);
                 requestBody.add("messages", messages);
                 requestBody.add("tools", tools);
-                requestBody.addProperty("max_tokens", 2000);
-                requestBody.addProperty("temperature", 0.3);
+                requestBody.addProperty("max_tokens", maxTokens);
+                requestBody.addProperty("temperature", temperature);
 
                 RequestBody body = RequestBody.create(
                         requestBody.toString(),
@@ -238,10 +251,11 @@ public class OpenAiManager {
                 error.addProperty("error", "处理错误: " + e.getMessage());
                 return error;
             }
-        });
+        }, executorService);
     }
 
     public void shutdown() {
+        executorService.shutdown();
         client.dispatcher().executorService().shutdown();
         client.connectionPool().evictAll();
     }

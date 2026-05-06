@@ -13,6 +13,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,9 +25,9 @@ public class OpsGuiCommand implements Listener {
     private final OpsCommandHandler handler;
     private final Map<UUID, SignSession> sessions = new HashMap<>();
 
-    public OpsGuiCommand(ArkOpsAi plugin) {
+    public OpsGuiCommand(ArkOpsAi plugin, OpsCommandHandler handler) {
         this.plugin = plugin;
-        this.handler = new OpsCommandHandler(plugin);
+        this.handler = handler;
     }
 
     public void openGui(Player player) {
@@ -108,6 +109,18 @@ public class OpsGuiCommand implements Listener {
         });
 
         event.getBlock().setType(Material.AIR);
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        SignSession session = sessions.remove(playerId);
+        if (session != null) {
+            Block block = session.signLocation().getBlock();
+            if (block.getType() == Material.OAK_SIGN) {
+                block.setType(Material.AIR);
+            }
+        }
     }
 
     private record SignSession(PermissionManager.PermissionLevel level, Location signLocation) {}

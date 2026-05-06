@@ -10,6 +10,19 @@ command:
   ai_analyzing: "§eArkOpsAI is analyzing request..."
   ai_failed: "§cArkOpsAI request failed: {0}"
   max_iterations: "§cArkOpsAI has reached maximum iterations, stopping execution."
+  help_header: "§e§l===== ArkOps-Ai Help ====="
+  help_usage: "§7Use /ops <action> to manage the server"
+  help_examples: "§7Examples:"
+  help_example_restart: "§7  /ops restart server"
+  help_example_stop: "§7  /ops stop server"
+  help_example_reload: "§7  /ops hot-reload Essentials"
+  help_example_plugins: "§7  /ops list plugins"
+  help_example_time: "§7  /ops set game time to night"
+  help_example_gamemode: "§7  /ops set my gamemode to creative"
+  help_example_command: "§7  /ops execute command give @p diamond 64"
+  help_example_status: "§7  /ops server status"
+  help_example_player: "§7  /ops player info <player>"
+  help_permissions: "§7Permission levels: §cDisabled §7| §bPlayer §7| §aAdmin §7| §dSuper Admin"
 
 # Permission Messages
 permission:

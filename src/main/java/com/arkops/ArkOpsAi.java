@@ -56,9 +56,9 @@ public final class ArkOpsAi extends JavaPlugin {
         this.skillManager.loadSkillsFromFolder(skillsDir.getAbsolutePath());
 
         this.opsCommandHandler = new OpsCommandHandler(this);
-        getCommand("ops").setExecutor(new OpsCommandExecutor(this));
+        getCommand("ops").setExecutor(new OpsCommandExecutor(this, this.opsCommandHandler));
 
-        OpsGuiCommand opsGuiCommand = new OpsGuiCommand(this);
+        OpsGuiCommand opsGuiCommand = new OpsGuiCommand(this, this.opsCommandHandler);
         getCommand("opsgui").setExecutor((sender, command, label, args) -> {
             if (!(sender instanceof org.bukkit.entity.Player)) {
                 sender.sendMessage("§c该命令只能由玩家使用");
