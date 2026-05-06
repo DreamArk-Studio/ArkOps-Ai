@@ -8,6 +8,7 @@ import com.arkops.manager.LanguageManager;
 import com.arkops.manager.OpenAiManager;
 import com.arkops.manager.PermissionManager;
 import com.arkops.manager.ServerActionManager;
+import com.arkops.manager.TelemetryManager;
 import com.arkops.skill.SkillManager;
 import com.arkops.util.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -21,6 +22,7 @@ public final class ArkOpsAi extends JavaPlugin {
     private PermissionManager permissionManager;
     private ServerActionManager serverActionManager;
     private LanguageManager languageManager;
+    private TelemetryManager telemetryManager;
     private Logger logger;
     private OpsCommandHandler opsCommandHandler;
     private SkillManager skillManager;
@@ -71,6 +73,11 @@ public final class ArkOpsAi extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new ChatListener(this, this.opsCommandHandler), this);
 
+        // 插件遥测：统计使用者数量，仅发送 UUID，不收集个人信息
+        // Telemetry: counts active users only, sends UUID, no personal data collected
+        this.telemetryManager = new TelemetryManager(this);
+        this.telemetryManager.start();
+
         this.logger.info("ArkOps-Ai 已成功启用!");
         this.logger.info("使用 /ops 命令开始 ArkOpsAI 运维管理");
         this.logger.info("使用 @ops 在聊天中直接与 AI 对话");
@@ -81,6 +88,9 @@ public final class ArkOpsAi extends JavaPlugin {
     public void onDisable() {
         if (this.logger != null) {
             this.logger.info("ArkOps-Ai 正在关闭...");
+        }
+        if (this.telemetryManager != null) {
+            this.telemetryManager.shutdown();
         }
         if (this.openAiManager != null) {
             this.openAiManager.shutdown();
