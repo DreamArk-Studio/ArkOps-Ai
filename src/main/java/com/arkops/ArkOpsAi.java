@@ -78,6 +78,10 @@ public final class ArkOpsAi extends JavaPlugin {
         this.telemetryManager = new TelemetryManager(this);
         this.telemetryManager.start();
 
+        this.logger.info("使用本插件即表示您同意以下条款：");
+        this.logger.info("《用户协议》: https://dreamark.club/page.php?slug=terms");
+        this.logger.info("《隐私政策》: https://dreamark.club/page.php?slug=privacy");
+
         this.logger.info("ArkOps-Ai 已成功启用!");
         this.logger.info("使用 /ops 命令开始 ArkOpsAI 运维管理");
         this.logger.info("使用 @ops 在聊天中直接与 AI 对话");
