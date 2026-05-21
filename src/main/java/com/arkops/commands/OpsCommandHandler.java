@@ -24,7 +24,7 @@ public class OpsCommandHandler {
     private final PermissionManager permissionManager;
     private final ServerActionManager actionManager;
     private final SkillManager skillManager;
-    private final int maxIterations;
+    private int maxIterations;
     private final Map<UUID, CopyOnWriteArrayList<Long>> requestTimestamps = new ConcurrentHashMap<>();
     private final Map<UUID, JsonArray> playerContexts = new ConcurrentHashMap<>();
 
@@ -34,6 +34,10 @@ public class OpsCommandHandler {
         this.permissionManager = plugin.getPermissionManager();
         this.actionManager = plugin.getServerActionManager();
         this.skillManager = plugin.getSkillManager();
+        this.maxIterations = plugin.getConfig().getInt("agent.max-iterations", 10);
+    }
+
+    public void reloadConfig() {
         this.maxIterations = plugin.getConfig().getInt("agent.max-iterations", 10);
     }
 
@@ -511,7 +515,7 @@ public class OpsCommandHandler {
     }
 
     private String checkPermission(UUID playerId, String playerName, JsonObject args) {
-        String requiredLevel = args.get("required_level").getAsString();
+        String requiredLevel = requireString(args, "required_level", "check_permission");
         PermissionManager.PermissionLevel required = PermissionManager.PermissionLevel.fromString(requiredLevel);
         PermissionManager.PermissionLevel current = permissionManager.getPermissionLevel(playerId);
 
@@ -576,7 +580,10 @@ public class OpsCommandHandler {
 
         sanitized = Normalizer.normalize(sanitized, Normalizer.Form.NFKC);
 
+        // 移除控制字符和零宽字符
         sanitized = sanitized.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]", "");
+        sanitized = sanitized.replaceAll("[\\u200B-\\u200D\\uFEFF\\u200E\\u200F]", "");
+
         sanitized = sanitized.replaceAll("(?i)\\[\\s*start\\s*[_\\-]?of\\s*[_\\-]?the\\s*[_\\-]?input\\s*\\]", "");
         sanitized = sanitized.replaceAll("(?i)\\[\\s*end\\s*[_\\-]?of\\s*[_\\-]?the\\s*[_\\-]?input\\s*\\]", "");
         sanitized = sanitized.replaceAll("(?i)\\[\\s*system\\s*\\]", "");
@@ -598,6 +605,12 @@ public class OpsCommandHandler {
         sanitized = sanitized.replaceAll("(?i)forget\\s*(all\\s*)?(previous|prior|above|earlier)?\\s*(instructions?|rules?|prompts?)", "");
         sanitized = sanitized.replaceAll("(?i)you\\s*are\\s*now\\s*(in|a)", "");
         sanitized = sanitized.replaceAll("(?i)jailbreak", "");
+        sanitized = sanitized.replaceAll("(?i)(act|pretend|role\\s*play)\\s*as\\s*(a\\s*)?(different\\s*)?(character|persona)", "");
+        sanitized = sanitized.replaceAll("(?i)begin\\s*(new\\s*)?(conversation|session|chat)", "");
+        sanitized = sanitized.replaceAll("(?i)reset\\s*(your\\s*)?(memory|context|state)", "");
+        sanitized = sanitized.replaceAll("(?i)(i\\s+)?command\\s*(you|the\\s*system)\\s*to", "");
+        sanitized = sanitized.replaceAll("(?i)output\\s*(your\\s*)?system\\s*(prompt|instruction|message)s?", "");
+        sanitized = sanitized.replaceAll("(?i)reveal\\s*(your\\s*)?(system\\s*)?(prompt|instruction|rule)s?", "");
 
         if (sanitized.length() > 2000) {
             sanitized = sanitized.substring(0, 2000);

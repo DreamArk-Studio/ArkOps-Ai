@@ -145,6 +145,12 @@ public final class ArkOpsAi extends JavaPlugin {
         if (permissionManager != null) {
             permissionManager.reloadPermissions();
         }
+        if (opsCommandHandler != null) {
+            opsCommandHandler.reloadConfig();
+        }
+        if (openAiManager != null) {
+            openAiManager.reloadConfig();
+        }
         logger.info("ArkOps-Ai 配置文件已热重载");
     }
 }

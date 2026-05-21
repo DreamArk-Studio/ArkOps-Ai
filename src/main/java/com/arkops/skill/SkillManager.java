@@ -386,9 +386,9 @@ public class SkillManager {
             try {
                 plugin.getLogger().info("发现 Skill 文件: " + file.getName());
 
-                // 创建 URLClassLoader 加载 jar 文件
+                // 使用 IsolatedClassLoader 隔离加载 Skill
                 java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
-                try (java.net.URLClassLoader classLoader = new java.net.URLClassLoader(
+                try (IsolatedClassLoader classLoader = new IsolatedClassLoader(
                         urls,
                         this.getClass().getClassLoader());
                      java.util.jar.JarFile jarFile = new java.util.jar.JarFile(file)) {

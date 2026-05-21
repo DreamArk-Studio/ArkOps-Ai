@@ -58,13 +58,7 @@ public class ServerActionManager {
             return "使用 PlugManX 热重载插件: " + pluginName;
         }
 
-        if (targetPlugin.isEnabled()) {
-            targetPlugin.getPluginLoader().disablePlugin(targetPlugin);
-            targetPlugin.getPluginLoader().enablePlugin(targetPlugin);
-            return "已热重载插件: " + pluginName;
-        }
-
-        return "无法热重载插件: " + pluginName;
+        return "未安装 PlugManX，无法热重载插件。请安装 PlugManX 或使用 Plugman 指令手动操作。";
     }
 
     public String hotUnloadPlugin(CommandSender sender, String pluginName) {
@@ -81,8 +75,7 @@ public class ServerActionManager {
             return "使用 PlugManX 热卸载插件: " + pluginName;
         }
 
-        targetPlugin.getPluginLoader().disablePlugin(targetPlugin);
-        return "已热卸载插件: " + pluginName;
+        return "未安装 PlugManX，无法热卸载插件。请安装 PlugManX 或使用 Plugman 指令手动操作。";
     }
 
     public String hotLoadPlugin(CommandSender sender, String pluginName) {
