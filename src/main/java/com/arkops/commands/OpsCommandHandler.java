@@ -24,6 +24,7 @@ public class OpsCommandHandler {
     private final PermissionManager permissionManager;
     private final ServerActionManager actionManager;
     private final SkillManager skillManager;
+    private final int maxIterations;
     private final Map<UUID, CopyOnWriteArrayList<Long>> requestTimestamps = new ConcurrentHashMap<>();
     private final Map<UUID, JsonArray> playerContexts = new ConcurrentHashMap<>();
 
@@ -33,6 +34,7 @@ public class OpsCommandHandler {
         this.permissionManager = plugin.getPermissionManager();
         this.actionManager = plugin.getServerActionManager();
         this.skillManager = plugin.getSkillManager();
+        this.maxIterations = plugin.getConfig().getInt("agent.max-iterations", 10);
     }
 
     public void handleCommand(CommandSender sender, String command) {
@@ -178,7 +180,7 @@ public class OpsCommandHandler {
     }
 
     private String executeAgentLoopWithResponse(String playerName, UUID playerId, String originalCommand, JsonArray messages, JsonArray tools, int iteration, AISessionContext context) {
-        if (iteration >= 10) {
+        if (iteration >= maxIterations) {
             return "达到最大迭代次数";
         }
 
@@ -245,7 +247,7 @@ public class OpsCommandHandler {
     }
 
     private void executeAgentLoop(CommandSender sender, String playerName, UUID playerId, String originalCommand, JsonArray messages, JsonArray tools, int iteration, boolean broadcast, AISessionContext context) {
-        if (iteration >= 10) {
+        if (iteration >= maxIterations) {
             sender.sendMessage(lang.getMessage("command.max_iterations"));
             return;
         }
