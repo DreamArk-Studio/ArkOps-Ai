@@ -16,11 +16,11 @@ public class OpenAiManager {
 
     private final ArkOpsAi plugin;
     private final OkHttpClient client;
-    private final String apiKey;
-    private final String model;
-    private final String apiUrl;
-    private final int maxTokens;
-    private final double temperature;
+    private String apiKey;
+    private String model;
+    private String apiUrl;
+    private int maxTokens;
+    private double temperature;
     private final ExecutorService executorService;
 
     public OpenAiManager(ArkOpsAi plugin) {
@@ -252,6 +252,14 @@ public class OpenAiManager {
                 return error;
             }
         }, executorService);
+    }
+
+    public void reloadConfig() {
+        this.apiKey = plugin.getConfig().getString("openai.api-key", "");
+        this.model = plugin.getConfig().getString("openai.model", "qwen3.5-plus");
+        this.apiUrl = plugin.getConfig().getString("openai.api-url", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
+        this.maxTokens = plugin.getConfig().getInt("openai.max-tokens", 2000);
+        this.temperature = plugin.getConfig().getDouble("openai.temperature", 1.0);
     }
 
     public void shutdown() {

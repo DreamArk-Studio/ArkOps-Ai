@@ -5,6 +5,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -34,11 +35,14 @@ public class LanguageManager {
 
         this.langConfig = YamlConfiguration.loadConfiguration(langFile);
 
-        InputStream defaultStream = plugin.getResource("lang/en.yml");
-        if (defaultStream != null) {
-            YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
-                    new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
-            langConfig.setDefaults(defaultConfig);
+        try (InputStream defaultStream = plugin.getResource("lang/en.yml")) {
+            if (defaultStream != null) {
+                YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
+                langConfig.setDefaults(defaultConfig);
+            }
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to load default language file: " + e.getMessage());
         }
 
         messageCache.clear();
